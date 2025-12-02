@@ -1,20 +1,55 @@
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { AuthProvider } from './src/context/AuthContext';
+import { AppNavigator } from './src/navigation/AppNavigator';
+import { cssInterop } from 'nativewind';
+import { 
+  View, 
+  Text, 
+  TextInput, 
+  TouchableOpacity, 
+  ScrollView, 
+  KeyboardAvoidingView,
+  FlatList,
+  ActivityIndicator,
+  Image
+} from 'react-native';
+import './global.css';
+
+// Enable className prop for React Native components
+cssInterop(View, { className: 'style' });
+cssInterop(Text, { className: 'style' });
+cssInterop(TextInput, { className: 'style' });
+cssInterop(TouchableOpacity, { className: 'style' });
+cssInterop(ScrollView, { 
+  className: 'style',
+  contentContainerClassName: 'contentContainerStyle'
+});
+cssInterop(KeyboardAvoidingView, { className: 'style' });
+cssInterop(FlatList, { 
+  className: 'style',
+  contentContainerClassName: 'contentContainerStyle'
+});
+cssInterop(ActivityIndicator, { className: 'style' });
+cssInterop(Image, { className: 'style' });
+
+// Create a client for React Query
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 export default function App() {
   return (
-    <View style={styles.container}>
-      <Text>Open up App.tsx to start working on your app!</Text>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <AppNavigator />
       <StatusBar style="auto" />
-    </View>
+      </AuthProvider>
+    </QueryClientProvider>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
