@@ -312,7 +312,7 @@ const ManualTransactionScreen = () => {
         </TouchableOpacity>
       </View>
 
-      <View style={styles.content}>
+      <ScrollView style={styles.content} keyboardShouldPersistTaps="handled">
         {/* Transaction Type Tabs */}
         <View style={styles.typeContainer}>
           {['expense', 'income'].map((type) => (
@@ -391,7 +391,7 @@ const ManualTransactionScreen = () => {
             multiline
           />
         </View>
-      </View>
+      </ScrollView>
 
       {/* Category Selection Modal */}
       {/* Category Selection Modal */}

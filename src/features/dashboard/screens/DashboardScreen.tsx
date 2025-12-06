@@ -11,7 +11,7 @@ import { Transaction, Category } from '../../../lib/types';
 
 // Components
 import { DateNavigator } from '../components/DateNavigator';
-import { FilterMenu } from '../components/FilterMenu';
+import { FilterMenu, FilterPeriod } from '../components/FilterMenu';
 import { SummaryOverview } from '../components/SummaryOverview';
 import { ExpenseOverviewChart } from '../components/ExpenseOverviewChart';
 
@@ -30,7 +30,7 @@ type RootStackParamList = {
 
 
 // Types
-type FilterPeriod = 'daily' | 'weekly' | 'monthly';
+
 
 interface ProcessedData {
   totalExpense: number;
@@ -206,9 +206,14 @@ export default function DashboardScreen() {
     setFilterPeriod(period);
     // Reset to current period when changing filter type
     const now = moment();
-    setCurrentDate(period === 'monthly' ? now.startOf('month') :
-      period === 'weekly' ? now.startOf('week') :
-        now.startOf('day'));
+    setCurrentDate(
+      period === 'monthly' ? now.startOf('month') :
+        period === 'weekly' ? now.startOf('week') :
+          period === 'quarterly' ? now.startOf('quarter') :
+            period === 'yearly' ? now.startOf('year') :
+              period === 'half-yearly' ? (now.month() < 6 ? now.startOf('year') : now.startOf('year').add(6, 'months')) :
+                now.startOf('day')
+    );
   }, []);
 
   useLayoutEffect(() => {
@@ -228,6 +233,13 @@ export default function DashboardScreen() {
       case 'weekly':
         return moment(currentDate).startOf('week').format('YYYY-MM-DD HH:mm:ss');
       case 'monthly':
+        return moment(currentDate).startOf('month').format('YYYY-MM-DD HH:mm:ss');
+      case 'quarterly':
+        return moment(currentDate).startOf('quarter').format('YYYY-MM-DD HH:mm:ss');
+      case 'yearly':
+        return moment(currentDate).startOf('year').format('YYYY-MM-DD HH:mm:ss');
+      case 'half-yearly':
+        return moment(currentDate).format('YYYY-MM-DD HH:mm:ss'); // Assumes currentDate is already start of half-year
       default:
         return moment(currentDate).startOf('month').format('YYYY-MM-DD HH:mm:ss');
     }
@@ -240,6 +252,13 @@ export default function DashboardScreen() {
       case 'weekly':
         return moment(currentDate).endOf('week').format('YYYY-MM-DD HH:mm:ss');
       case 'monthly':
+        return moment(currentDate).endOf('month').format('YYYY-MM-DD HH:mm:ss');
+      case 'quarterly':
+        return moment(currentDate).endOf('quarter').format('YYYY-MM-DD HH:mm:ss');
+      case 'yearly':
+        return moment(currentDate).endOf('year').format('YYYY-MM-DD HH:mm:ss');
+      case 'half-yearly':
+        return moment(currentDate).add(5, 'months').endOf('month').format('YYYY-MM-DD HH:mm:ss');
       default:
         return moment(currentDate).endOf('month').format('YYYY-MM-DD HH:mm:ss');
     }
@@ -379,13 +398,25 @@ export default function DashboardScreen() {
             ? moment(prev).subtract(1, 'month').startOf('month')
             : filterPeriod === 'weekly'
               ? moment(prev).subtract(1, 'week').startOf('week')
-              : moment(prev).subtract(1, 'day').startOf('day');
+              : filterPeriod === 'quarterly'
+                ? moment(prev).subtract(1, 'quarter').startOf('quarter')
+                : filterPeriod === 'yearly'
+                  ? moment(prev).subtract(1, 'year').startOf('year')
+                  : filterPeriod === 'half-yearly'
+                    ? moment(prev).subtract(6, 'months')
+                    : moment(prev).subtract(1, 'day').startOf('day');
         } else {
           return filterPeriod === 'monthly'
             ? moment(prev).add(1, 'month').startOf('month')
             : filterPeriod === 'weekly'
               ? moment(prev).add(1, 'week').startOf('week')
-              : moment(prev).add(1, 'day').startOf('day');
+              : filterPeriod === 'quarterly'
+                ? moment(prev).add(1, 'quarter').startOf('quarter')
+                : filterPeriod === 'yearly'
+                  ? moment(prev).add(1, 'year').startOf('year')
+                  : filterPeriod === 'half-yearly'
+                    ? moment(prev).add(6, 'months')
+                    : moment(prev).add(1, 'day').startOf('day');
         }
       });
     },
@@ -407,6 +438,13 @@ export default function DashboardScreen() {
       case 'weekly':
         return `${currentDate.startOf('week').format('MMM D')} - ${currentDate.clone().endOf('week').format('MMM D, YYYY')}`;
       case 'monthly':
+        return currentDate.format('MMM YYYY');
+      case 'quarterly':
+        return `${currentDate.format('MMM')} - ${currentDate.clone().endOf('quarter').format('MMM YYYY')}`;
+      case 'yearly':
+        return currentDate.format('YYYY');
+      case 'half-yearly':
+        return `${currentDate.format('MMM')} - ${currentDate.clone().add(5, 'months').format('MMM YYYY')}`;
       default:
         return currentDate.format('MMM YYYY');
     }
@@ -502,7 +540,7 @@ export default function DashboardScreen() {
 const styles = StyleSheet.create({
   headerContainer: {
     backgroundColor: '#f8fafc',
-    paddingVertical: 12,
+    paddingVertical: 6,
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb',
   },

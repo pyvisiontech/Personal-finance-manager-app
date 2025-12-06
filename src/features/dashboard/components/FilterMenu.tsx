@@ -2,7 +2,7 @@ import React from 'react';
 import { View, StyleSheet, TouchableOpacity, Text, Modal } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 
-type FilterPeriod = 'daily' | 'weekly' | 'monthly';
+export type FilterPeriod = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'half-yearly' | 'yearly';
 
 interface FilterMenuProps {
   selectedPeriod: FilterPeriod;
@@ -16,11 +16,14 @@ export function FilterMenu({ selectedPeriod, onPeriodChange }: FilterMenuProps) 
     { label: 'Daily', value: 'daily' },
     { label: 'Weekly', value: 'weekly' },
     { label: 'Monthly', value: 'monthly' },
+    { label: '3 Months', value: 'quarterly' },
+    { label: '6 Months', value: 'half-yearly' },
+    { label: 'Yearly', value: 'yearly' },
   ];
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.filterButton}
         onPress={() => setShowMenu(true)}
       >
@@ -33,9 +36,9 @@ export function FilterMenu({ selectedPeriod, onPeriodChange }: FilterMenuProps) 
         animationType="fade"
         onRequestClose={() => setShowMenu(false)}
       >
-        <TouchableOpacity 
-          style={styles.modalOverlay} 
-          activeOpacity={1} 
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
           onPress={() => setShowMenu(false)}
         >
           <View style={styles.menuContainer} onStartShouldSetResponder={() => true}>
@@ -45,7 +48,7 @@ export function FilterMenu({ selectedPeriod, onPeriodChange }: FilterMenuProps) 
                 <MaterialIcons name="close" size={24} color="#6B7280" />
               </TouchableOpacity>
             </View>
-            
+
             {periods.map((period) => (
               <TouchableOpacity
                 key={period.value}

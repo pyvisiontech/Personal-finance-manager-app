@@ -12,7 +12,7 @@ interface DateNavigatorProps {
 export function DateNavigator({ currentDate, onNavigate, periodLabel }: DateNavigatorProps) {
   return (
     <View style={styles.container}>
-      <TouchableOpacity 
+      <TouchableOpacity
         onPress={() => onNavigate('prev')}
         style={styles.navButton}
       >
@@ -21,7 +21,7 @@ export function DateNavigator({ currentDate, onNavigate, periodLabel }: DateNavi
       <Text style={styles.dateText}>
         {periodLabel}
       </Text>
-      <TouchableOpacity 
+      <TouchableOpacity
         onPress={() => onNavigate('next')}
         style={styles.navButton}
       >
@@ -37,7 +37,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 40,
-    marginVertical: 8,
+    marginVertical: 2,
     flex: 1,
   } as ViewStyle,
   navButton: {
