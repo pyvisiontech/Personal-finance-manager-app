@@ -146,14 +146,12 @@ const fetchTransactions = async (userId: string, startDate: string, endDate: str
         category_user:category_user_id (
           id,
           name,
-          icon,
-          type
+          icon
         ),
         category_ai:category_ai_id (
           id,
           name,
-          icon,
-          type
+          icon
         )
       `)
       .eq('user_id', userId)
@@ -176,7 +174,6 @@ const fetchTransactions = async (userId: string, startDate: string, endDate: str
         tx &&
         typeof tx.id === 'string' &&
         typeof tx.amount === 'number' &&
-        typeof tx.type === 'string' &&
         (tx.category_user === null || typeof tx.category_user === 'object') &&
         (tx.category_ai === null || typeof tx.category_ai === 'object')
       );

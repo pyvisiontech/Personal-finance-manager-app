@@ -1,10 +1,10 @@
-import React, { useState,useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  TouchableOpacity, 
-  TextInput, 
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  TextInput,
   Dimensions,
   StyleProp,
   ViewStyle,
@@ -27,7 +27,6 @@ interface Category {
   id: string;
   name: string;
   icon: string;
-  type: 'expense' | 'income';
 }
 
 // Category Data
@@ -95,13 +94,13 @@ const Calculator: React.FC<CalculatorProps> = ({ onTextChange, style }) => {
 
   const performOperation = (nextOperation: string | null) => {
     const inputValue = parseFloat(display);
-    
+
     if (storedValue === null) {
       setStoredValue(inputValue);
     } else if (operation) {
       const currentValue = storedValue || 0;
       let newValue: number;
-      
+
       switch (operation) {
         case '+': newValue = currentValue + inputValue; break;
         case '-': newValue = currentValue - inputValue; break;
@@ -109,12 +108,12 @@ const Calculator: React.FC<CalculatorProps> = ({ onTextChange, style }) => {
         case '÷': newValue = currentValue / inputValue; break;
         default: newValue = inputValue;
       }
-      
+
       setStoredValue(newValue);
       setDisplay(String(newValue));
       onTextChange(String(newValue));
     }
-    
+
     setWaitingForOperand(true);
     if (nextOperation) {
       setOperation(nextOperation);
@@ -139,13 +138,13 @@ const Calculator: React.FC<CalculatorProps> = ({ onTextChange, style }) => {
   };
 
   const renderButton = (
-    label: string, 
-    onPress: () => void, 
-    style: StyleProp<ViewStyle> = {}, 
+    label: string,
+    onPress: () => void,
+    style: StyleProp<ViewStyle> = {},
     textStyle: StyleProp<TextStyle> = {}
   ) => (
-    <TouchableOpacity 
-      style={[styles.calcButton, style]} 
+    <TouchableOpacity
+      style={[styles.calcButton, style]}
       onPress={onPress}
     >
       <Text style={[styles.calcButtonText, textStyle]}>{label}</Text>
@@ -160,7 +159,7 @@ const Calculator: React.FC<CalculatorProps> = ({ onTextChange, style }) => {
         {renderButton('÷', () => performOperation('÷'), styles.calcOperatorButton, styles.calcOperatorText)}
       </View>
       <View style={styles.calcRow}>
-        {['7', '8', '9'].map((num) => 
+        {['7', '8', '9'].map((num) =>
           <React.Fragment key={num}>
             {renderButton(num, () => inputDigit(parseInt(num, 10)), styles.calcNumberButton)}
           </React.Fragment>
@@ -168,7 +167,7 @@ const Calculator: React.FC<CalculatorProps> = ({ onTextChange, style }) => {
         {renderButton('×', () => performOperation('×'), styles.calcOperatorButton, styles.calcOperatorText)}
       </View>
       <View style={styles.calcRow}>
-        {['4', '5', '6'].map((num) => 
+        {['4', '5', '6'].map((num) =>
           <React.Fragment key={num}>
             {renderButton(num, () => inputDigit(parseInt(num, 10)), styles.calcNumberButton)}
           </React.Fragment>
@@ -176,7 +175,7 @@ const Calculator: React.FC<CalculatorProps> = ({ onTextChange, style }) => {
         {renderButton('-', () => performOperation('-'), styles.calcOperatorButton, styles.calcOperatorText)}
       </View>
       <View style={styles.calcRow}>
-        {['1', '2', '3'].map((num) => 
+        {['1', '2', '3'].map((num) =>
           <React.Fragment key={num}>
             {renderButton(num, () => inputDigit(parseInt(num, 10)), styles.calcNumberButton)}
           </React.Fragment>
@@ -233,80 +232,74 @@ const ManualTransactionScreen = () => {
     fetchCategories();
   }, []);
 
-    // Filter categories based on transaction type
-  const filteredCategories = categories.filter(
-    category => category.type === transactionType
-  );
 
-  
-
- const handleSave = async () => {
+  const handleSave = async () => {
     if (!selectedCategory) {
       Alert.alert('Error', 'Please select a category');
       return;
     }
 
-  try {
+    try {
       // Get the current user
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
-       // Get the default account for the user
-    const { data: accounts, error: accountError } = await supabase
-      .from('accounts')
-      .select('id')
-      .eq('user_id', user.id)
-      .limit(1);
+      // Get the default account for the user
+      const { data: accounts, error: accountError } = await supabase
+        .from('accounts')
+        .select('id')
+        .eq('user_id', user.id)
+        .limit(1);
 
-    if (accountError) throw accountError;
-   const accountId = accounts?.[0]?.id || null;
-
-
+      if (accountError) throw accountError;
+      const accountId = accounts?.[0]?.id || null;
 
 
-     // Insert the transaction
-    const { data: transaction, error } = await supabase
-      .from('transactions')
-      .insert([{
-        account_id: accountId, 
-        user_id: user.id,
-        source: 'manual', // Marking as manual entry
-        amount: Math.abs(parseFloat(amount)) * (transactionType === 'expense' ? -1 : 1), // Negative for expenses
-        currency: 'INR', // Assuming INR as default currency
-        type: transactionType,
-        raw_description: note || 'Manual transaction',
-        merchant: null, // No merchant for manual entries
-        status: 'final',
-        category_user_id: selectedCategory.id, // Using user's category selection
-        occurred_at: new Date().toISOString(),
-      }])
-      .select()
-      .single();
+
+
+      // Insert the transaction
+      const { data: transaction, error } = await supabase
+        .from('transactions')
+        .insert([{
+          account_id: accountId,
+          user_id: user.id,
+          source: 'manual', // Marking as manual entry
+          amount: Math.abs(parseFloat(amount)) * (transactionType === 'expense' ? -1 : 1), // Negative for expenses
+          currency: 'INR', // Assuming INR as default currency
+          type: transactionType,
+          raw_description: note || 'Manual transaction',
+          merchant: null, // No merchant for manual entries
+          status: 'final',
+          category_user_id: selectedCategory.id, // Using user's category selection
+          occurred_at: new Date().toISOString(),
+        }])
+        .select()
+        .single();
 
       if (error) throw error;
 
-     
-    // Create transaction category history
-    const { error: historyError } = await supabase
-      .from('transaction_categories')
-      .insert({
-        transaction_id: transaction.id,
-        category_id: selectedCategory.id,
-        assigned_by: 'user_override',
-        user_id: user.id,
-      });
 
-    if (historyError) throw historyError;
+      // Create transaction category history
+      const { error: historyError } = await supabase
+        .from('transaction_categories')
+        .insert({
+          transaction_id: transaction.id,
+          category_id: selectedCategory.id,
+          assigned_by: 'user_override',
+          user_id: user.id,
+        });
 
-    console.log('Transaction saved:', transaction);
-    navigation.goBack();
-  } catch (error) {
-    console.error('Error saving transaction:', error); 
-    Alert.alert('Error', 'Failed to save transaction. Please try again.');
-  }
-};
-  
- return (
+      if (historyError) throw historyError;
+
+      console.log('Transaction saved:', transaction);
+      navigation.goBack();
+    } catch (error) {
+      console.error('Error saving transaction:', error);
+      Alert.alert('Error', 'Failed to save transaction. Please try again.');
+    }
+  };
+
+  return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
@@ -314,7 +307,7 @@ const ManualTransactionScreen = () => {
           <Text style={styles.cancelButton}>CANCEL</Text>
         </TouchableOpacity>
         <Text style={styles.title}>Add Transaction</Text>
-        <TouchableOpacity onPress={handleSave}> 
+        <TouchableOpacity onPress={handleSave}>
           <Text style={styles.saveButton}>SAVE</Text>
         </TouchableOpacity>
       </View>
@@ -328,7 +321,7 @@ const ManualTransactionScreen = () => {
               style={[
                 styles.typeButton,
                 transactionType === type && styles.typeButtonActive,
-                { 
+                {
                   backgroundColor: type === 'expense' ? '#FF6B6B' : '#4CAF50',
                   opacity: transactionType === type ? 1 : 0.7
                 }
@@ -351,7 +344,7 @@ const ManualTransactionScreen = () => {
         {/* Amount Display */}
         <View style={styles.amountContainer}>
           <Text style={styles.amountLabel}>Amount</Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             onPress={() => setShowCalculator(!showCalculator)}
             style={styles.amountDisplay}
           >
@@ -374,12 +367,12 @@ const ManualTransactionScreen = () => {
         {/* Category Selection */}
         <View style={styles.sectionContainer}>
           <Text style={styles.sectionTitle}>Category</Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.categoryButton}
             onPress={() => setShowCategoryModal(true)}
           >
             <Text style={[styles.categoryButtonText, !selectedCategory && { color: '#999' }]}>
-              {selectedCategory 
+              {selectedCategory
                 ? `${selectedCategory.icon} ${selectedCategory.name}`
                 : 'Select Category'}
             </Text>
@@ -415,7 +408,7 @@ const ManualTransactionScreen = () => {
               <ActivityIndicator size="large" color="#007AFF" style={{ marginVertical: 20 }} />
             ) : (
               <ScrollView>
-                {filteredCategories.map((category) => (
+                {categories.map((category) => (
                   <TouchableOpacity
                     key={category.id}
                     style={[
