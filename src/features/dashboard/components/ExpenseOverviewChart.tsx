@@ -22,8 +22,8 @@ interface ExpenseOverviewChartProps {
 export function ExpenseOverviewChart({ chartData, totalExpense, breakdown }: ExpenseOverviewChartProps) {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Expense Overview</Text>
-      
+
+
       {chartData.length > 0 ? (
         <View style={styles.chartContainer}>
           <View style={styles.pieChartContainer}>
@@ -44,13 +44,13 @@ export function ExpenseOverviewChart({ chartData, totalExpense, breakdown }: Exp
               )}
             />
           </View>
-          
+
           {/* Legend */}
           <View style={styles.legendContainer}>
             {breakdown.map((item, index) => (
               <View key={index} style={styles.legendItem}>
-                <View 
-                  style={[styles.legendColor, { backgroundColor: item.color }]} 
+                <View
+                  style={[styles.legendColor, { backgroundColor: item.color }]}
                 />
                 <Text style={styles.legendName}>{item.name}</Text>
                 <Text style={styles.legendPercentage}>
@@ -79,12 +79,7 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 2,
   } as ViewStyle,
-  title: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 16,
-  } as TextStyle,
+
   chartContainer: {
     alignItems: 'center',
   } as ViewStyle,

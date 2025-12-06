@@ -3,7 +3,7 @@ import { View, ScrollView, StyleSheet, ActivityIndicator, Text } from 'react-nat
 import { useNavigation } from '@react-navigation/native';
 import moment, { Moment } from 'moment';
 import { useLayoutEffect } from 'react';
-import  FloatingActionButton  from '../components/FloatingActionButton';
+import FloatingActionButton from '../components/FloatingActionButton';
 
 
 // Types
@@ -17,7 +17,7 @@ import { ExpenseOverviewChart } from '../components/ExpenseOverviewChart';
 import { SpendingBreakdownList } from '../components/SpendingBreakdownList';
 
 // Hooks
-import { useAuth } from '../../../context/AuthContext';  
+import { useAuth } from '../../../context/AuthContext';
 
 // Services
 import { supabase } from '../../../lib/supabase';
@@ -30,7 +30,7 @@ type RootStackParamList = {
 
 
 // Types
-type FilterPeriod = 'daily' | 'weekly' | 'monthly';  
+type FilterPeriod = 'daily' | 'weekly' | 'monthly';
 
 interface ProcessedData {
   totalExpense: number;
@@ -40,13 +40,29 @@ interface ProcessedData {
   breakdown: Array<{ name: string; amount: number; percentage: number; color: string }>;
 }
 
-const pieColors = ['#FF6B6B', '#FFD93D', '#6BCB77', '#4D96FF', '#C77DFF'];
+const pieColors = [
+  '#3B82F6', // Blue 500
+  '#F97316', // Orange 500
+  '#10B981', // Emerald 500
+  '#EC4899', // Pink 500
+  '#8B5CF6', // Violet 500
+  '#F59E0B', // Amber 500
+  '#06B6D4', // Cyan 500
+  '#EF4444', // Red 500
+  '#84CC16', // Lime 500
+  '#6366F1', // Indigo 500
+  '#14B8A6', // Teal 500
+  '#D946EF', // Fuchsia 500
+  '#0EA5E9', // Sky 500
+  '#EAB308', // Yellow 500
+  '#64748B', // Slate 500
+];
 
 interface CategoryMap {
   [key: string]: {
     name: string;
     amount: number;
-    color: string;
+
   };
 }
 
@@ -80,26 +96,32 @@ function processTransactionData(
       categoryMap[categoryId] = {
         name: categoryName,
         amount: 0,
-        color: pieColors[Object.keys(categoryMap).length % pieColors.length],
+        // color will be assigned later based on rank
       };
     }
     categoryMap[categoryId].amount += Math.abs(tx.amount);
   });
 
   // Sort categories by amount (descending)
-  const sortedCategories = Object.entries(categoryMap).sort((a, b) => b[1].amount - a[1].amount);
+  const sortedCategories = Object.entries(categoryMap)
+    .sort((a, b) => b[1].amount - a[1].amount)
+    .map(([id, data], index) => ({
+      ...data,
+      // Assign color based on rank (index)
+      color: pieColors[index % pieColors.length]
+    }));
 
   // Prepare chart data (top 5 categories)
   const chartData = sortedCategories
     .slice(0, 5)
-    .map(([_, category], index) => ({
+    .map((category) => ({
       value: category.amount,
       color: category.color,
       text: category.name,
     }));
 
   // Prepare breakdown data
-  const breakdown = sortedCategories.map(([_, category]) => ({
+  const breakdown = sortedCategories.map((category) => ({
     name: category.name,
     amount: category.amount,
     percentage: totalExpense > 0 ? Math.round((category.amount / totalExpense) * 100) : 0,
@@ -151,7 +173,7 @@ const fetchTransactions = async (userId: string, startDate: string, endDate: str
     // Type guard to ensure data matches TransactionWithCategory
     const isValidTransaction = (tx: any): tx is TransactionWithCategory => {
       return (
-        tx && 
+        tx &&
         typeof tx.id === 'string' &&
         typeof tx.amount === 'number' &&
         typeof tx.type === 'string' &&
@@ -186,19 +208,19 @@ export default function DashboardScreen() {
     setFilterPeriod(period);
     // Reset to current period when changing filter type
     const now = moment();
-    setCurrentDate(period === 'monthly' ? now.startOf('month') : 
-                  period === 'weekly' ? now.startOf('week') : 
-                  now.startOf('day'));
+    setCurrentDate(period === 'monthly' ? now.startOf('month') :
+      period === 'weekly' ? now.startOf('week') :
+        now.startOf('day'));
   }, []);
 
-   useLayoutEffect(() => {
+  useLayoutEffect(() => {
     // Removed header filter menu
     navigation.setOptions({
       headerRight: () => null,
     });
   }, [navigation]);
 
-  
+
 
   // Calculate date range based on filter period
   const startDate = useMemo(() => {
@@ -225,13 +247,13 @@ export default function DashboardScreen() {
     }
   }, [filterPeriod, currentDate]);
 
-  
+
 
   // Fetch the earliest transaction date when user changes
   useEffect(() => {
     const getEarliestTransactionDate = async () => {
       if (!user?.id || !initialLoad) return;
-      
+
       try {
         const { data } = await supabase
           .from('transactions')
@@ -240,7 +262,7 @@ export default function DashboardScreen() {
           .order('occurred_at', { ascending: true })
           .limit(1)
           .single();
-          
+
         if (data?.occurred_at) {
           setCurrentDate(moment(data.occurred_at).startOf('month'));
         }
@@ -250,7 +272,7 @@ export default function DashboardScreen() {
         setInitialLoad(false);
       }
     };
-    
+
     getEarliestTransactionDate();
   }, [user?.id, initialLoad]);
 
@@ -304,17 +326,17 @@ export default function DashboardScreen() {
     (direction: 'prev' | 'next') => {
       setCurrentDate((prev) => {
         if (direction === 'prev') {
-          return filterPeriod === 'monthly' 
+          return filterPeriod === 'monthly'
             ? moment(prev).subtract(1, 'month').startOf('month')
             : filterPeriod === 'weekly'
-            ? moment(prev).subtract(1, 'week').startOf('week')
-            : moment(prev).subtract(1, 'day').startOf('day');
+              ? moment(prev).subtract(1, 'week').startOf('week')
+              : moment(prev).subtract(1, 'day').startOf('day');
         } else {
           return filterPeriod === 'monthly'
             ? moment(prev).add(1, 'month').startOf('month')
             : filterPeriod === 'weekly'
-            ? moment(prev).add(1, 'week').startOf('week')
-            : moment(prev).add(1, 'day').startOf('day');
+              ? moment(prev).add(1, 'week').startOf('week')
+              : moment(prev).add(1, 'day').startOf('day');
         }
       });
     },
@@ -398,11 +420,11 @@ export default function DashboardScreen() {
                 No transactions recorded
               </Text>
               <Text style={styles.emptyStateSubtext}>
-                {filterPeriod === 'daily' 
-                  ? 'No expenses for this day' 
+                {filterPeriod === 'daily'
+                  ? 'No expenses for this day'
                   : filterPeriod === 'weekly'
-                  ? 'No expenses for this week'
-                  : 'No expenses for this month'}
+                    ? 'No expenses for this week'
+                    : 'No expenses for this month'}
               </Text>
             </View>
           )}
@@ -416,8 +438,8 @@ export default function DashboardScreen() {
           ) : (
             <View style={[styles.emptyState, styles.breakdownPlaceholder]}>
               <Text style={styles.emptyStateText}>
-                {transactions.length > 0 
-                  ? 'No categorized expenses' 
+                {transactions.length > 0
+                  ? 'No categorized expenses'
                   : 'No spending recorded'}
               </Text>
               {transactions.length > 0 && (

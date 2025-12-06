@@ -15,16 +15,16 @@ interface SpendingBreakdownListProps {
 export function SpendingBreakdownList({ items }: SpendingBreakdownListProps) {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Spending Breakdown</Text>
-      
+
+
       {items.length > 0 ? (
         <View>
           {items.map((item, index) => (
             <View key={index} style={styles.itemContainer}>
               <View style={styles.itemHeader}>
                 <View style={styles.itemNameContainer}>
-                  <View 
-                    style={[styles.colorIndicator, { backgroundColor: item.color }]} 
+                  <View
+                    style={[styles.colorIndicator, { backgroundColor: item.color }]}
                   />
                   <Text style={styles.itemName}>{item.name}</Text>
                 </View>
@@ -70,12 +70,7 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 2,
   } as ViewStyle,
-  title: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 16,
-  } as TextStyle,
+
   itemContainer: {
     marginBottom: 16,
   } as ViewStyle,
