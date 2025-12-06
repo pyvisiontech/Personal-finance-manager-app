@@ -3,6 +3,7 @@ import { View, ScrollView, StyleSheet, ActivityIndicator, Text } from 'react-nat
 import { useNavigation } from '@react-navigation/native';
 import moment, { Moment } from 'moment';
 import { useLayoutEffect } from 'react';
+import  FloatingActionButton  from '../components/FloatingActionButton';
 
 
 // Types
@@ -191,17 +192,11 @@ export default function DashboardScreen() {
   }, []);
 
    useLayoutEffect(() => {
+    // Removed header filter menu
     navigation.setOptions({
-      headerRight: () => (
-        <View style={{ marginRight: 16 }}>
-          <FilterMenu
-            selectedPeriod={filterPeriod}
-            onPeriodChange={handleFilterChange}
-          />
-        </View>
-      ),
+      headerRight: () => null,
     });
-  }, [navigation, filterPeriod, handleFilterChange]); // Add handleFilterChange to dependencies
+  }, [navigation]);
 
   
 
@@ -434,6 +429,7 @@ export default function DashboardScreen() {
           )}
         </View>
       </ScrollView>
+      <FloatingActionButton />
     </View>
   );
 }
@@ -486,7 +482,8 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    backgroundColor: '#f5f5dc',
+    backgroundColor: '#fff',
+    position: 'relative',
   },
   scrollView: {
     flex: 1,

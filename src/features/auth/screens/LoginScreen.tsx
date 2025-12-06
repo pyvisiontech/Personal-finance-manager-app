@@ -4,6 +4,39 @@ import { Input } from '../../../components/Input';
 import { Button } from '../../../components/Button';
 import { useAuth } from '../../../context/AuthContext';
 
+const styles = {
+  featureContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    paddingHorizontal: 10,
+    marginBottom: 30,
+  },
+  featureItem: {
+    alignItems: 'center',
+    flex: 1,
+    padding: 10,
+  },
+  featureIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  featureIconText: {
+    fontSize: 24,
+  },
+  featureText: {
+    fontSize: 12,
+    color: '#4B5563',
+    textAlign: 'center',
+    marginTop: 4,
+  },
+} as const;
+
 export function LoginScreen({ navigation }: any) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -30,18 +63,49 @@ export function LoginScreen({ navigation }: any) {
   return (
     <KeyboardAvoidingView
       className="flex-1 bg-gray-100"
-      style={{ flex: 1, backgroundColor: '#F3F4F6' }}
+      style={{ flex: 1, backgroundColor: '#f5f5dc' }}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView
         contentContainerClassName="flex-grow justify-center p-5"
         contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 20 }}
       >
-        <View className="mb-10 items-center" style={{ marginBottom: 40, alignItems: 'center' }}>
-          <Text className="text-3xl font-bold text-gray-800 mb-2" style={{ fontSize: 30, fontWeight: '700', color: '#1F2937', marginBottom: 8 }}>
-            Welcome Back
+        <View style={{ marginBottom: 40, alignItems: 'center' }}>
+          <Text style={{ fontSize: 28, fontWeight: '700', color: '#2C3E50', marginBottom: 12, textAlign: 'center' }}>
+            Welcome to Finance Tracker
           </Text>
-          <Text className="text-base text-gray-600" style={{ fontSize: 16, color: '#4B5563' }}>
+          <Text style={{ fontSize: 16, color: '#4B5563', textAlign: 'center', marginBottom: 32, lineHeight: 24, paddingHorizontal: 20 }}>
+            Take control of your finances and achieve your financial goals with our powerful money management tools.
+          </Text>
+          
+          <View style={styles.featureContainer}>
+            <View style={styles.featureItem}>
+              <View style={styles.featureIcon}>
+                <Text style={styles.featureIconText}>💰</Text>
+              </View>
+              <Text style={styles.featureText}>Track Expenses</Text>
+            </View>
+            <View style={styles.featureItem}>
+              <View style={styles.featureIcon}>
+                <Text style={styles.featureIconText}>📈</Text>
+              </View>
+              <Text style={styles.featureText}>Monitor Budgets</Text>
+            </View>
+            <View style={styles.featureItem}>
+              <View style={styles.featureIcon}>
+                <Text style={styles.featureIconText}>🎯</Text>
+              </View>
+              <Text style={styles.featureText}>Reach Goals</Text>
+            </View>
+          </View>
+          
+          <Text style={{ 
+            fontSize: 20, 
+            fontWeight: '600', 
+            color: '#2C3E50', 
+            marginTop: 40,
+            marginBottom: 20 
+          }}>
             Sign in to continue
           </Text>
         </View>

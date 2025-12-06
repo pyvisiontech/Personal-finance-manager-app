@@ -1,24 +1,31 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, Alert } from 'react-native';
+import React, { useState } from 'react';
+import { 
+  View, 
+  Text, 
+  ScrollView, 
+  Alert, 
+  StyleSheet, 
+  TouchableOpacity, 
+  ActivityIndicator 
+} from 'react-native';
 import { Button } from '../../../components/Button';
 import { Card } from '../../../components/Card';
 import { useUploadStatement, usePickDocument } from '../hooks/useUploadStatement';
 import { useAuth } from '../../../context/AuthContext';
-import { supabase } from '../../../lib/supabase';
 
-export function UploadStatementScreen({ navigation }: any) {
+export function UploadStatementScreen() {
   const { user } = useAuth();
   const uploadStatement = useUploadStatement();
   const pickDocument = usePickDocument();
-  const [selectedFile, setSelectedFile] = useState<{ uri: string; name: string; type: string } | null>(null);
-  const [processingImportId, setProcessingImportId] = useState<string | null>(null);
-  const [processingStatus, setProcessingStatus] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<{ 
+    uri: string; 
+    name: string; 
+    type: string 
+  } | null>(null);
 
   const handlePickFile = async () => {
     const file = await pickDocument();
-    if (file) {
-      setSelectedFile(file);
-    }
+    if (file) setSelectedFile(file);
   };
 
   const handleUpload = async () => {
@@ -28,114 +35,160 @@ export function UploadStatementScreen({ navigation }: any) {
     }
 
     try {
-      const importRecord = await uploadStatement.mutateAsync({
+      await uploadStatement.mutateAsync({
         userId: user.id,
         fileUri: selectedFile.uri,
         fileName: selectedFile.name,
         fileType: selectedFile.type,
       });
-      
-      Alert.alert('Success', 'Statement uploaded successfully! Processing will begin shortly.');
+      Alert.alert('Success', 'Statement uploaded successfully!');
       setSelectedFile(null);
-      setProcessingImportId(importRecord?.id || null);
-      setProcessingStatus(importRecord?.status || 'uploaded');
-    } catch (error: any) {
-      Alert.alert('Upload Failed', error.message || 'Could not upload statement');
-      setProcessingImportId(null);
-      setProcessingStatus(null);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to upload statement');
     }
   };
 
-  useEffect(() => {
-    if (!processingImportId) return;
-
-    const pollStatus = async () => {
-      const { data, error } = await supabase
-        .from('statement_imports')
-        .select('status')
-        .eq('id', processingImportId)
-        .single();
-
-      if (error) {
-        console.error('Failed to check statement status', error);
-        return;
-      }
-
-      if (data?.status) {
-        setProcessingStatus(data.status);
-
-        if (data.status === 'completed') {
-          setProcessingImportId(null);
-          Alert.alert('Success', 'Statement processed. Redirecting to transactions.');
-          navigation.navigate('Transactions');
-        } else if (data.status === 'failed') {
-          setProcessingImportId(null);
-          Alert.alert('Processing Failed', 'Please try uploading the statement again.');
-        }
-      }
-    };
-
-    const intervalId = setInterval(pollStatus, 3000);
-    pollStatus();
-
-    return () => clearInterval(intervalId);
-  }, [processingImportId, navigation]);
-
   return (
-    <ScrollView className="flex-1 bg-gray-100">
-      <View className="p-5">
-        <Text className="text-3xl font-bold text-gray-800 mb-2">Upload Bank Statement</Text>
-        <Text className="text-sm text-gray-600 mb-6">
-          Upload your bank statement (PDF or CSV) to automatically categorize transactions
-        </Text>
+    <ScrollView style={styles.container}>
+      <Text style={styles.title}>Upload Statement</Text>
+      <Text style={styles.subtitle}>Upload your bank statement to import transactions</Text>
 
-        <Card className="mb-4">
-          {selectedFile ? (
-            <View>
-              <Text className="text-base text-gray-800 mb-4 font-medium">{selectedFile.name}</Text>
-              <Button
-                title="Change File"
+      <View style={styles.card}>
+        {!selectedFile ? (
+          <TouchableOpacity 
+            style={styles.uploadButton}
+            onPress={handlePickFile}
+          >
+            <Text>Select File</Text>
+            <Text style={styles.smallText}>Supports: PDF, CSV, XLSX</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.fileContainer}>
+            <Text style={styles.fileName}>{selectedFile.name}</Text>
+            <View style={styles.buttonRow}>
+              <TouchableOpacity
                 onPress={handlePickFile}
-                variant="outline"
-                className="mb-3"
-              />
+                style={[styles.button, styles.outlineButton]}
+                disabled={uploadStatement.isPending}
+              >
+                <Text style={styles.outlineButtonText}>Change</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleUpload}
+                style={[styles.button, styles.primaryButton]}
+                disabled={uploadStatement.isPending}
+              >
+                {uploadStatement.isPending ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.buttonText}>Upload</Text>
+                )}
+              </TouchableOpacity>
             </View>
-          ) : (
-            <View className="items-center py-5">
-              <Text className="text-base text-gray-600 mb-4">No file selected</Text>
-              <Button
-                title="Pick File"
-                onPress={handlePickFile}
-                variant="outline"
-                className="mb-3"
-              />
-            </View>
-          )}
+          </View>
+        )}
+      </View>
 
-          {selectedFile && (
-            <Button
-              title={uploadStatement.isPending ? 'Uploading...' : 'Upload Statement'}
-              onPress={handleUpload}
-              loading={uploadStatement.isPending}
-              disabled={uploadStatement.isPending}
-              className="mt-3"
-            />
-          )}
-
-          {processingStatus && (
-            <Text className="text-sm text-gray-600 mt-2">
-              Processing status: {processingStatus}
-            </Text>
-          )}
-        </Card>
-
-        <Card className="bg-blue-50">
-          <Text className="text-base font-semibold text-gray-800 mb-2">Supported Formats:</Text>
-          <Text className="text-sm text-gray-600 mb-1">• PDF files (.pdf)</Text>
-          <Text className="text-sm text-gray-600 mb-1">• CSV files (.csv)</Text>
-          <Text className="text-sm text-gray-600 mb-1">• Excel files (.xlsx)</Text>
-        </Card>
+      <View style={styles.infoCard}>
+        <Text style={styles.infoTitle}>Supported Formats:</Text>
+        <Text>• PDF (.pdf)</Text>
+        <Text>• CSV (.csv)</Text>
+        <Text>• Excel (.xlsx, .xls)</Text>
       </View>
     </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 16,
+    backgroundColor: '#f8f9fa',
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    color: '#1f2937',
+  },
+  subtitle: {
+    color: '#6b7280',
+    marginBottom: 20,
+    fontSize: 14,
+  },
+  card: {
+    marginBottom: 16,
+    padding: 16,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  uploadButton: {
+    padding: 24,
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderStyle: 'dashed',
+    borderRadius: 8,
+    alignItems: 'center',
+    backgroundColor: '#f9fafb',
+  },
+  fileContainer: {
+    width: '100%',
+  },
+  fileName: {
+    marginBottom: 16,
+    color: '#374151',
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  button: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 48,
+  },
+  primaryButton: {
+    backgroundColor: '#4f46e5',
+  },
+  outlineButton: {
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    backgroundColor: '#fff',
+  },
+  buttonText: {
+    color: '#fff',
+    fontWeight: '500',
+  },
+  outlineButtonText: {
+    color: '#4f46e5',
+    fontWeight: '500',
+  },
+  smallText: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginTop: 4,
+  },
+  infoCard: {
+    padding: 16,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  infoTitle: {
+    fontWeight: '600',
+    marginBottom: 8,
+    color: '#1f2937',
+  },
+});

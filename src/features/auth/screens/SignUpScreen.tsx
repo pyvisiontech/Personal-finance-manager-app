@@ -1,8 +1,86 @@
 import React, { useState } from 'react';
-import { View, Text, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
+import { View, Text, KeyboardAvoidingView, Platform, ScrollView, Alert, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
 import { Input } from '../../../components/Input';
 import { Button } from '../../../components/Button';
 import { useAuth } from '../../../context/AuthContext';
+import { MaterialIcons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+const { width } = Dimensions.get('window');
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#f5f5dc',
+  },
+  container: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: 24,
+    paddingBottom: 40,
+  },
+  backButton: {
+    position: 'absolute',
+    top: 16,
+    left: 16,
+    zIndex: 10,
+    padding: 8,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 20,
+  },
+  header: {
+    marginTop: 40,
+    marginBottom: 32,
+    alignItems: 'center',
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 8,
+    fontFamily: 'Inter-Bold',
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#6b7280',
+    textAlign: 'center',
+    fontFamily: 'Inter-Regular',
+  },
+  formContainer: {
+    width: '100%',
+    marginBottom: 24,
+  },
+  input: {
+    marginBottom: 16,
+  },
+  footer: {
+    width: '100%',
+    marginTop: 8,
+  },
+  signUpButton: {
+    width: '100%',
+    marginTop: 8,
+  },
+  loginContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 24,
+  },
+  loginText: {
+    color: '#6b7280',
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+  },
+  loginLink: {
+    color: '#3b82f6',
+    fontWeight: '600',
+    fontSize: 14,
+    fontFamily: 'Inter-SemiBold',
+  },
+});
 
 export function SignUpScreen({ navigation }: any) {
   const [firstName, setFirstName] = useState('');
@@ -49,23 +127,37 @@ export function SignUpScreen({ navigation }: any) {
   };
 
   return (
-    <KeyboardAvoidingView
-      className="flex-1 bg-gray-100"
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView contentContainerClassName="flex-grow justify-center p-5">
-        <View className="mb-10 items-center">
-          <Text className="text-3xl font-bold text-gray-800 mb-2">Create Account</Text>
-          <Text className="text-base text-gray-600">Sign up to get started</Text>
-        </View>
+    <SafeAreaView style={styles.safeArea}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
+      >
+        <TouchableOpacity 
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <MaterialIcons name="arrow-back" size={24} color="#4B5563" />
+        </TouchableOpacity>
+        
+        <ScrollView 
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.header}>
+            <Text style={styles.title}>Create Account</Text>
+            <Text style={styles.subtitle}>Create an account to continue</Text>
+          </View>
 
-        <View className="w-full">
+          <View style={styles.formContainer}>
           <Input
             label="First Name"
             placeholder="Enter your first name"
             value={firstName}
             onChangeText={setFirstName}
             autoCapitalize="words"
+            style={styles.input}
           />
 
           <Input
@@ -74,6 +166,7 @@ export function SignUpScreen({ navigation }: any) {
             value={lastName}
             onChangeText={setLastName}
             autoCapitalize="words"
+            style={styles.input}
           />
 
           <Input
@@ -82,6 +175,7 @@ export function SignUpScreen({ navigation }: any) {
             value={phoneNumber}
             onChangeText={setPhoneNumber}
             keyboardType="phone-pad"
+            style={styles.input}
           />
 
           <Input
@@ -92,6 +186,7 @@ export function SignUpScreen({ navigation }: any) {
             keyboardType="email-address"
             autoCapitalize="none"
             autoComplete="email"
+            style={styles.input}
           />
 
           <Input
@@ -102,6 +197,7 @@ export function SignUpScreen({ navigation }: any) {
             secureTextEntry
             autoCapitalize="none"
             autoComplete="password"
+            style={styles.input}
           />
 
           <Input
@@ -111,26 +207,27 @@ export function SignUpScreen({ navigation }: any) {
             onChangeText={setConfirmPassword}
             secureTextEntry
             autoCapitalize="none"
+            style={styles.input}
           />
 
-          <Button
-            title="Sign Up"
-            onPress={handleSignUp}
-            loading={loading}
-            disabled={loading}
-          />
+          <View style={styles.footer}>
+            <Button
+              title={loading ? 'Creating Account...' : 'Sign Up'}
+              onPress={handleSignUp}
+              disabled={loading}
+              style={styles.signUpButton}
+            />
 
-          <View className="flex-row justify-center mt-5">
-            <Text className="text-gray-600 text-sm">Already have an account? </Text>
-            <Text
-              className="text-blue-500 text-sm font-semibold"
-              onPress={() => navigation.navigate('Login')}
-            >
-              Sign In
-            </Text>
+            <View style={styles.loginContainer}>
+              <Text style={styles.loginText}>Already have an account? </Text>
+              <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+                <Text style={styles.loginLink}>Sign In</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
+    </SafeAreaView>
   );
-}
+};

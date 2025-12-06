@@ -7,6 +7,8 @@ import { SignUpScreen } from '../features/auth/screens/SignUpScreen';
 import DashboardScreen from '../features/dashboard/screens/DashboardScreen';
 import { TransactionsListScreen } from '../features/transactions/screens/TransactionsListScreen';
 import { TransactionsTableScreen } from '../features/transactions/screens/TransactionsTableScreen';
+import ManualTransactionScreen from '../features/transactions/screens/ManualTransactionScreen';
+
 import { UploadStatementScreen } from '../features/statements/screens/UploadStatementScreen';
 import { View, Text } from 'react-native';
 
@@ -50,6 +52,11 @@ function MainNavigator() {
         component={UploadStatementScreen}
         options={{ title: 'Upload Statement' }}
       />
+      <Stack.Screen
+      name="ManualTransaction"
+      component={ManualTransactionScreen}
+      options={{ title: 'Add Transaction' }}
+/>
     </Stack.Navigator>
   );
 }
