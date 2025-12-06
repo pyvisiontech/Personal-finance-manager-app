@@ -14,7 +14,7 @@ import { DateNavigator } from '../components/DateNavigator';
 import { FilterMenu } from '../components/FilterMenu';
 import { SummaryOverview } from '../components/SummaryOverview';
 import { ExpenseOverviewChart } from '../components/ExpenseOverviewChart';
-import { SpendingBreakdownList } from '../components/SpendingBreakdownList';
+
 
 // Hooks
 import { useAuth } from '../../../context/AuthContext';
@@ -430,26 +430,7 @@ export default function DashboardScreen() {
           )}
         </View>
 
-        {/* Spending Breakdown Section */}
-        <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>Spending Breakdown</Text>
-          {topCategories.length > 0 ? (
-            <SpendingBreakdownList items={topCategories} />
-          ) : (
-            <View style={[styles.emptyState, styles.breakdownPlaceholder]}>
-              <Text style={styles.emptyStateText}>
-                {transactions.length > 0
-                  ? 'No categorized expenses'
-                  : 'No spending recorded'}
-              </Text>
-              {transactions.length > 0 && (
-                <Text style={styles.emptyStateSubtext}>
-                  Add categories to your transactions to see the breakdown
-                </Text>
-              )}
-            </View>
-          )}
-        </View>
+
       </ScrollView>
       <FloatingActionButton />
     </View>

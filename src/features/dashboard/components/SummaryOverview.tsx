@@ -13,19 +13,19 @@ export function SummaryOverview({ totalExpense, totalIncome, balance }: SummaryO
       <View style={styles.column}>
         <Text style={styles.label}>Expense</Text>
         <Text style={[styles.amount, styles.expense]}>
-          ₹{totalExpense.toLocaleString('en-IN')}
+          ₹{Math.abs(totalExpense).toLocaleString('en-IN')}
         </Text>
       </View>
       <View style={styles.column}>
         <Text style={styles.label}>Income</Text>
         <Text style={[styles.amount, styles.income]}>
-          ₹{totalIncome.toLocaleString('en-IN')}
+          ₹{Math.abs(totalIncome).toLocaleString('en-IN')}
         </Text>
       </View>
       <View style={styles.column}>
         <Text style={styles.label}>Total</Text>
-        <Text style={[styles.amount, styles.balance]}>
-          ₹{balance.toLocaleString('en-IN')}
+        <Text style={[styles.amount, balance < 0 ? styles.expense : styles.income]}>
+          ₹{Math.abs(balance).toLocaleString('en-IN')}
         </Text>
       </View>
     </View>
@@ -57,7 +57,5 @@ const styles = StyleSheet.create({
   income: {
     color: '#10B981', // emerald-500
   } as TextStyle,
-  balance: {
-    color: '#059669', // emerald-600
-  } as TextStyle,
+
 });

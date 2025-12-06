@@ -2,12 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TextStyle, ViewStyle } from 'react-native';
 import { PieChart } from 'react-native-gifted-charts';
 
-interface ChartData {
-  name: string;
-  amount: number;
-  percentage: number;
-  color: string;
-}
+import { SpendingBreakdownItem, SpendingItem } from './SpendingBreakdownItem';
 
 interface ExpenseOverviewChartProps {
   chartData: {
@@ -16,7 +11,7 @@ interface ExpenseOverviewChartProps {
     text: string;
   }[];
   totalExpense: number;
-  breakdown: ChartData[];
+  breakdown: SpendingItem[];
 }
 
 export function ExpenseOverviewChart({ chartData, totalExpense, breakdown }: ExpenseOverviewChartProps) {
@@ -48,15 +43,7 @@ export function ExpenseOverviewChart({ chartData, totalExpense, breakdown }: Exp
           {/* Legend */}
           <View style={styles.legendContainer}>
             {breakdown.map((item, index) => (
-              <View key={index} style={styles.legendItem}>
-                <View
-                  style={[styles.legendColor, { backgroundColor: item.color }]}
-                />
-                <Text style={styles.legendName}>{item.name}</Text>
-                <Text style={styles.legendPercentage}>
-                  {item.percentage}%
-                </Text>
-              </View>
+              <SpendingBreakdownItem key={index} item={item} />
             ))}
           </View>
         </View>
@@ -107,27 +94,7 @@ const styles = StyleSheet.create({
     width: '100%',
     marginTop: 24,
   } as ViewStyle,
-  legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  } as ViewStyle,
-  legendColor: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginRight: 8,
-  } as ViewStyle,
-  legendName: {
-    flex: 1,
-    fontSize: 14,
-    color: '#374151',
-  } as TextStyle,
-  legendPercentage: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#111827',
-  } as TextStyle,
+
   emptyText: {
     textAlign: 'center',
     color: '#6B7280',
