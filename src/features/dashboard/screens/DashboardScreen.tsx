@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useState, useEffect } from 'react';
 import { View, ScrollView, StyleSheet, ActivityIndicator, Text } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import moment, { Moment } from 'moment';
 import { useLayoutEffect } from 'react';
 import FloatingActionButton from '../components/FloatingActionButton';
@@ -294,28 +294,29 @@ export default function DashboardScreen() {
   }, [user?.id, initialLoad]);
 
   // Fetch transactions when date range changes or when initial load completes
-  useEffect(() => {
-    const loadTransactions = async () => {
-      if (!user?.id || (initialLoad && transactions.length > 0)) {
-        console.log('Skipping transaction load:', { hasUser: !!user?.id, initialLoad, hasTransactions: transactions.length > 0 });
-        return;
-      }
+  // Fetch transactions when date range changes or when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      const loadTransactions = async () => {
+        if (!user?.id) return;
 
-      console.log(`Fetching transactions from ${startDate} to ${endDate}`);
-      setIsLoading(true);
-      try {
-        const data = await fetchTransactions(user.id, startDate, endDate);
-        console.log('Fetched transactions:', data.length);
-        setTransactions(data);
-      } catch (error) {
-        console.error('Failed to load transactions:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+        console.log(`Fetching transactions from ${startDate} to ${endDate}`);
+        setIsLoading(true);
+        try {
+          const data = await fetchTransactions(user.id, startDate, endDate);
+          console.log('Fetched transactions:', data.length);
+          setTransactions(data);
+        } catch (error) {
+          console.error('Failed to load transactions:', error);
+        } finally {
+          setIsLoading(false);
+          setInitialLoad(false);
+        }
+      };
 
-    loadTransactions();
-  }, [user?.id, startDate, endDate]);
+      loadTransactions();
+    }, [user?.id, startDate, endDate])
+  );
 
   // Process transactions data for the UI
   const processed = useMemo(() => {
