@@ -32,25 +32,6 @@ interface Category {
   icon: string;
 }
 
-// Category Data
-// const EXPENSE_CATEGORIES = [
-//   { id: 'food', name: 'Food', icon: '🍔' },
-//   { id: 'shopping', name: 'Shopping', icon: '🛍️' },
-//   { id: 'transport', name: 'Transport', icon: '🚗' },
-//   { id: 'bills', name: 'Bills', icon: '💸' },
-//   { id: 'entertainment', name: 'Entertainment', icon: '🎬' },
-//   { id: 'health', name: 'Health', icon: '🏥' },
-//   { id: 'education', name: 'Education', icon: '📚' },
-//   { id: 'other', name: 'Other', icon: '📦' },
-// ];
-
-// const INCOME_CATEGORIES = [
-//   { id: 'salary', name: 'Salary', icon: '💰' },
-//   { id: 'freelance', name: 'Freelance', icon: '💼' },
-//   { id: 'investment', name: 'Investment', icon: '📈' },
-//   { id: 'gift', name: 'Gift', icon: '🎁' },
-//   { id: 'other_income', name: 'Other', icon: '💵' },
-// ];
 
 // Type for Calculator props
 interface CalculatorProps {
@@ -58,85 +39,106 @@ interface CalculatorProps {
   style?: StyleProp<ViewStyle>;
 }
 
+// Helper for evaluation
+const evaluateExpression = (expr: string): number => {
+  try {
+    // Basic safety check: only allow numbers, operators, dots, and spaces
+    if (!/^[0-9+\-×÷.\s]+$/.test(expr)) {
+      // throw new Error('Invalid characters in expression');
+      return 0;
+    }
+
+    // Replace display operators with JS operators
+    const standardExpr = expr
+      .replace(/×/g, '*')
+      .replace(/÷/g, '/');
+
+    // Use Function constructor for safe evaluation of math expression
+    // robust against "85 +" (trailing operator)
+    const cleanExpr = standardExpr.trim();
+    const lastChar = cleanExpr.slice(-1);
+    const finalExpr = ['+', '-', '*', '/'].includes(lastChar)
+      ? cleanExpr.slice(0, -1)
+      : cleanExpr;
+
+    if (!finalExpr) return 0;
+
+    return new Function(`return ${finalExpr}`)();
+  } catch (e) {
+    console.warn('Evaluation failed, falling back to simple parse', e);
+    return parseFloat(expr) || 0;
+  }
+};
+
 // Custom Calculator Component
 const Calculator: React.FC<CalculatorProps> = ({ onTextChange, style }) => {
-  const [display, setDisplay] = useState('0');
-  const [storedValue, setStoredValue] = useState<number | null>(null);
-  const [operation, setOperation] = useState<string | null>(null);
-  const [waitingForOperand, setWaitingForOperand] = useState(false);
+  // We now maintain the full string expression as the source of truth for display
+  const [expression, setExpression] = useState('0');
+
+  const updateExpression = (newExpr: string) => {
+    setExpression(newExpr);
+    onTextChange(newExpr);
+  };
 
   const inputDigit = (digit: number) => {
-    const newDisplay = waitingForOperand ? String(digit) : (display === '0' ? String(digit) : display + digit);
-    setDisplay(newDisplay);
-    setWaitingForOperand(false);
-    onTextChange(newDisplay);
+    if (expression === '0') {
+      updateExpression(String(digit));
+    } else {
+      updateExpression(expression + digit);
+    }
   };
 
   const inputDot = () => {
-    if (waitingForOperand) {
-      const newValue = '0.';
-      setDisplay(newValue);
-      setWaitingForOperand(false);
-      onTextChange(newValue);
-      return;
-    }
-    if (display.indexOf('.') === -1) {
-      const newValue = display + '.';
-      setDisplay(newValue);
-      onTextChange(newValue);
+    // Prevent multiple dots in the same number segment
+    const parts = expression.split(/[+\-×÷]/);
+    const currentPart = parts[parts.length - 1];
+
+    if (currentPart.indexOf('.') === -1) {
+      updateExpression(expression + '.');
     }
   };
 
   const clearDisplay = () => {
-    setDisplay('0');
-    setStoredValue(null);
-    setOperation(null);
-    setWaitingForOperand(false);
-    onTextChange('0');
+    updateExpression('0');
   };
 
-  const performOperation = (nextOperation: string | null) => {
-    const inputValue = parseFloat(display);
+  const performOperation = (op: string) => {
+    const lastChar = expression.slice(-1);
+    const operators = ['+', '-', '×', '÷'];
 
-    if (storedValue === null) {
-      setStoredValue(inputValue);
-    } else if (operation) {
-      const currentValue = storedValue || 0;
-      let newValue: number;
-
-      switch (operation) {
-        case '+': newValue = currentValue + inputValue; break;
-        case '-': newValue = currentValue - inputValue; break;
-        case '×': newValue = currentValue * inputValue; break;
-        case '÷': newValue = currentValue / inputValue; break;
-        default: newValue = inputValue;
-      }
-
-      setStoredValue(newValue);
-      setDisplay(String(newValue));
-      onTextChange(String(newValue));
-    }
-
-    setWaitingForOperand(true);
-    if (nextOperation) {
-      setOperation(nextOperation);
+    if (operators.includes(lastChar)) {
+      // Replace last operator if user changes mind
+      updateExpression(expression.slice(0, -1) + ` ${op} `);
+    } else {
+      // Append new operator
+      updateExpression(expression + ` ${op} `);
     }
   };
 
   const handleEquals = () => {
-    if (!operation) return;
-    performOperation(null);
-    setOperation(null);
+    const result = evaluateExpression(expression);
+    // Format result to avoid long decimals?
+    // let resultStr = String(Math.round(result * 100) / 100); 
+    // Let's keep persistence precision but maybe stringify
+    updateExpression(String(result));
   };
 
   const handleBackspace = () => {
-    if (display.length === 1) {
-      setDisplay('0');
-      onTextChange('0');
+    if (expression.length <= 1) {
+      updateExpression('0');
     } else {
-      const newValue = display.slice(0, -1);
-      setDisplay(newValue);
-      onTextChange(newValue);
+      // If last chars were " + ", remove 3 chars? 
+      // Or just remove 1 char at a time. 
+      // For standard feel, removing " + " (3 chars) feels better if we added padding
+      // But simpler to just remove 1 char. 
+      // Our padding logic adds ` ${op} `. 
+      const lastChar = expression.slice(-1);
+      if (lastChar === ' ') {
+        // Likely end of operator padding
+        updateExpression(expression.slice(0, -1));
+      } else {
+        updateExpression(expression.slice(0, -1));
+      }
     }
   };
 
@@ -238,6 +240,8 @@ const ManualTransactionScreen = () => {
   }, []);
 
 
+  /* evaluateExpression is now at module level */
+
   const handleSave = async () => {
     if (!selectedCategory) {
       Alert.alert('Error', 'Please select a category');
@@ -245,6 +249,13 @@ const ManualTransactionScreen = () => {
     }
 
     try {
+      // Evaluate expected amount here
+      const calculatedAmount = evaluateExpression(amount);
+      if (isNaN(calculatedAmount)) {
+        Alert.alert('Error', 'Invalid amount');
+        return;
+      }
+
       // Get the current user
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
@@ -269,7 +280,7 @@ const ManualTransactionScreen = () => {
           account_id: accountId,
           user_id: user.id,
           source: 'manual', // Marking as manual entry
-          amount: Math.abs(parseFloat(amount)) * (transactionType === 'expense' ? -1 : 1), // Negative for expenses
+          amount: Math.abs(calculatedAmount) * (transactionType === 'expense' ? -1 : 1), // Negative for expenses
           currency: 'INR', // Assuming INR as default currency
           type: transactionType,
           raw_description: note || 'Manual transaction',
@@ -378,8 +389,7 @@ const ManualTransactionScreen = () => {
             <View style={styles.calculatorContainer}>
               <Calculator
                 onTextChange={(text) => {
-                  const cleanValue = text.replace(/[^0-9.]/g, '');
-                  setAmount(cleanValue || '0');
+                  setAmount(text);
                 }}
               />
             </View>
