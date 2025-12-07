@@ -12,7 +12,7 @@ const FloatingActionButton = () => {
 
   const toggleMenu = () => {
     const toValue = isOpen ? 0 : 1;
-    
+
     Animated.spring(animation, {
       toValue,
       friction: 5,
@@ -48,28 +48,28 @@ const FloatingActionButton = () => {
   });
 
   const uploadOpacity = animation.interpolate({
-    inputRange: [0, 0.5, 1],
-    outputRange: [0, 0, 1],
+    inputRange: [0, 1],
+    outputRange: [0, 1],
   });
 
   const addOpacity = animation.interpolate({
-    inputRange: [0, 0.5, 1],
-    outputRange: [0, 0, 1],
+    inputRange: [0, 1],
+    outputRange: [0, 1],
   });
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} pointerEvents="box-none">
       <Animated.View
         style={[
-          styles.button,
           styles.submenu,
           {
             opacity: uploadOpacity,
             transform: [{ translateY: uploadY }],
           },
         ]}
+        pointerEvents={isOpen ? 'auto' : 'none'}
       >
-        <TouchableOpacity onPress={uploadStatement}>
+        <TouchableOpacity onPress={uploadStatement} activeOpacity={0.7}>
           <View style={styles.submenuButton}>
             <MaterialIcons name="cloud-upload" size={24} color="#fff" />
             <Text style={styles.submenuText}>Upload Statement</Text>
@@ -79,15 +79,15 @@ const FloatingActionButton = () => {
 
       <Animated.View
         style={[
-          styles.button,
           styles.submenu,
           {
             opacity: addOpacity,
             transform: [{ translateY: addY }],
           },
         ]}
+        pointerEvents={isOpen ? 'auto' : 'none'}
       >
-        <TouchableOpacity onPress={addManualTransaction}>
+        <TouchableOpacity onPress={addManualTransaction} activeOpacity={0.7}>
           <View style={styles.submenuButton}>
             <MaterialIcons name="add" size={24} color="#fff" />
             <Text style={styles.submenuText}>Add Transaction</Text>
@@ -128,8 +128,15 @@ const styles = StyleSheet.create({
     right: 0,
     backgroundColor: '#007AFF',
     width: 200,
+    height: 56, // From button
     borderRadius: 8,
-    padding: 8,
+    // padding: 8, // Removed or adjusted to match alignment
+    justifyContent: 'center', // From button
+    shadowColor: '#000', // From button
+    shadowOffset: { width: 0, height: 2 }, // From button
+    shadowOpacity: 0.3, // From button
+    shadowRadius: 3, // From button
+    elevation: 5, // From button
   },
   submenuButton: {
     flexDirection: 'row',
