@@ -19,6 +19,9 @@ import { useNavigation } from '@react-navigation/native';
 import { RootStackParamList } from '../../../navigation/types';
 import { MaterialIcons } from '@expo/vector-icons';
 import { supabase } from '../../../lib/supabase';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import moment from 'moment';
+import { Platform } from 'react-native';
 
 const windowWidth = Dimensions.get('window').width;
 
@@ -201,6 +204,8 @@ const ManualTransactionScreen = () => {
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
+  const [date, setDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   // Fetch categories from Supabase
   useEffect(() => {
@@ -271,7 +276,7 @@ const ManualTransactionScreen = () => {
           merchant: null, // No merchant for manual entries
           status: 'final',
           category_user_id: selectedCategory.id, // Using user's category selection
-          occurred_at: new Date().toISOString(),
+          occurred_at: date.toISOString(),
         }])
         .select()
         .single();
@@ -328,6 +333,34 @@ const ManualTransactionScreen = () => {
           ))}
         </View>
 
+        {/* Date Selection */}
+        <View style={styles.sectionContainer}>
+          <Text style={styles.sectionTitle}>Date</Text>
+          <TouchableOpacity
+            style={styles.dateButton}
+            onPress={() => setShowDatePicker(true)}
+          >
+            <Text style={styles.dateButtonText}>
+              {moment(date).format('ddd, MMM D, YYYY')}
+            </Text>
+            <MaterialIcons name="calendar-today" size={20} color="#666" />
+          </TouchableOpacity>
+          {showDatePicker && (
+            <DateTimePicker
+              value={date}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              onChange={(event, selectedDate) => {
+                setShowDatePicker(false);
+                if (selectedDate) {
+                  setDate(selectedDate);
+                }
+              }}
+              maximumDate={new Date()}
+            />
+          )}
+        </View>
+
         {/* Amount Display */}
         <View style={styles.amountContainer}>
           <Text style={styles.amountLabel}>Amount</Text>
@@ -340,16 +373,18 @@ const ManualTransactionScreen = () => {
         </View>
 
         {/* Calculator */}
-        {showCalculator && (
-          <View style={styles.calculatorContainer}>
-            <Calculator
-              onTextChange={(text) => {
-                const cleanValue = text.replace(/[^0-9.]/g, '');
-                setAmount(cleanValue || '0');
-              }}
-            />
-          </View>
-        )}
+        {
+          showCalculator && (
+            <View style={styles.calculatorContainer}>
+              <Calculator
+                onTextChange={(text) => {
+                  const cleanValue = text.replace(/[^0-9.]/g, '');
+                  setAmount(cleanValue || '0');
+                }}
+              />
+            </View>
+          )
+        }
 
         {/* Category Selection */}
         <View style={styles.sectionContainer}>
@@ -378,7 +413,7 @@ const ManualTransactionScreen = () => {
             multiline
           />
         </View>
-      </ScrollView>
+      </ScrollView >
 
       {/* Category Selection Modal */}
       {/* Category Selection Modal */}
@@ -425,7 +460,7 @@ const ManualTransactionScreen = () => {
           </View>
         </View>
       </Modal>
-    </View>
+    </View >
   );
 };
 const styles = StyleSheet.create({
@@ -496,7 +531,8 @@ const styles = StyleSheet.create({
   },
   amountLabel: {
     fontSize: 16,
-    color: '#666',
+    fontWeight: '600',
+    color: '#333',
     marginBottom: 8,
   },
   amountDisplay: {
@@ -578,6 +614,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   categoryButtonText: {
+    fontSize: 16,
+    color: '#333',
+  },
+  dateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 8,
+    backgroundColor: '#fff',
+  },
+  dateButtonText: {
     fontSize: 16,
     color: '#333',
   },
