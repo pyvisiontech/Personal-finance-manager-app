@@ -4,6 +4,15 @@ import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import { supabase } from '../lib/supabase';
 
+interface ClientProfile {
+  id: string;
+  email: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  phone_number: string | null;
+  currency: string | null;
+}
+
 // Complete the OAuth session when browser closes
 WebBrowser.maybeCompleteAuthSession();
 
@@ -18,12 +27,19 @@ interface SignUpPayload {
 interface AuthContextType {
   user: User | null;
   session: Session | null;
+  clientProfile: ClientProfile | null;
+  needsProfileCompletion: boolean;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (payload: SignUpPayload) => Promise<void>;
   signInWithOtp: (email: string) => Promise<{ error: any }>;
   verifyOtp: (email: string, token: string) => Promise<{ error: any }>;
   signInWithGoogle: () => Promise<{ error: any }>;
+  completeProfile: (payload: {
+    firstName: string;
+    lastName: string;
+    phoneNumber: string;
+  }) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
 }
 
@@ -32,13 +48,53 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const [clientProfile, setClientProfile] = useState<ClientProfile | null>(null);
+  const [needsProfileCompletion, setNeedsProfileCompletion] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  const evaluateProfileNeedsCompletion = (profile: ClientProfile | null) => {
+    if (!profile) return true;
+    const hasFirst = !!profile.first_name && profile.first_name.trim().length > 0;
+    const hasLast = !!profile.last_name && profile.last_name.trim().length > 0;
+    const hasPhone = !!profile.phone_number && profile.phone_number.trim().length > 0;
+    return !(hasFirst && hasLast && hasPhone);
+  };
+
+  const fetchClientProfile = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('clients')
+        .select('id, email, first_name, last_name, phone_number, currency')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error fetching client profile:', error);
+        setClientProfile(null);
+        setNeedsProfileCompletion(true);
+        return;
+      }
+
+      setClientProfile(data ?? null);
+      setNeedsProfileCompletion(evaluateProfileNeedsCompletion(data ?? null));
+    } catch (err) {
+      console.error('Unexpected error fetching client profile:', err);
+      setClientProfile(null);
+      setNeedsProfileCompletion(true);
+    }
+  };
 
   useEffect(() => {
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
+      if (session?.user) {
+        await fetchClientProfile(session.user.id);
+      } else {
+        setClientProfile(null);
+        setNeedsProfileCompletion(false);
+      }
       setLoading(false);
     });
 
@@ -49,7 +105,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('Auth state changed:', event, 'Has session:', !!session, 'User:', session?.user?.email);
       setSession(session);
       setUser(session?.user ?? null);
-      setLoading(false);
+      setLoading(true);
       
       // Log auth events for debugging
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
@@ -64,7 +120,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .from('clients')
           .select('id')
           .eq('id', session.user.id)
-          .single();
+          .maybeSingle();
 
         if (!client) {
           const fullName = session.user.user_metadata?.full_name || session.user.user_metadata?.name || '';
@@ -77,8 +133,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             phone_number: session.user.user_metadata?.phone_number || '',
             currency: 'INR',
           });
+          await fetchClientProfile(session.user.id);
+        } else {
+          await fetchClientProfile(session.user.id);
         }
+      } else {
+        setClientProfile(null);
+        setNeedsProfileCompletion(false);
       }
+      setLoading(false);
     });
 
     // Handle deep links for OAuth callbacks
@@ -87,23 +150,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       // Only process URLs that contain a hash fragment (Supabase OAuth callback)
       if (!event.url.includes('#')) {
-        console.log('⚠️ No hash fragment in URL, likely not OAuth callback. Ignoring.');
+      
         return;
       }
 
       try {
         const url = event.url;
-        console.log('📝 Processing OAuth deep link...');
+      
         
         // Extract hash fragment
         const hashIndex = url.indexOf('#');
         if (hashIndex === -1) {
-          console.log('⚠️ No hash fragment in deep link');
+         
           return;
         }
         
         const hash = url.substring(hashIndex + 1);
-        console.log('✅ Hash fragment found, length:', hash.length);
+        
         
         const params = new URLSearchParams(hash);
         const accessToken = params.get('access_token');
@@ -111,12 +174,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const errorParam = params.get('error');
         
         if (errorParam) {
-          console.error('❌ OAuth error in deep link:', errorParam);
+          
           return;
         }
         
         if (accessToken && refreshToken) {
-          console.log('✅ Tokens found in deep link, setting session...');
+    
           const { data, error } = await supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken,
@@ -125,19 +188,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (error) {
             console.error('❌ Error setting session from deep link:', error);
           } else if (data.session) {
-            console.log('✅✅✅ Session set from deep link successfully!');
-            console.log('User:', data.session.user.email);
+           
             // Force auth state change
             await supabase.auth.getSession();
           } else {
-            console.error('❌ Session data is null after setSession');
+            console.error(' Session data is null after setSession');
           }
         } else {
-          console.log('⚠️ No tokens in deep link');
+          console.log('No tokens in deep link');
           console.log('Available params:', Array.from(params.keys()));
         }
       } catch (error) {
-        console.error('❌ Error handling deep link:', error);
+        console.error(' Error handling deep link:', error);
       }
     };
 
@@ -153,7 +215,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     Linking.getInitialURL().then((url) => {
       if (url) {
         handleDeepLink({ url }).catch((error) => {
-          console.error('❌ Error handling initial deep link:', error);
+          console.error(' Error handling initial deep link:', error);
         });
       }
     });
@@ -189,6 +251,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           currency: 'INR',
         });
       }
+      await fetchClientProfile(data.user.id);
     }
   };
 
@@ -216,6 +279,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         phone_number: phoneNumber,
         currency: 'INR',
       });
+    }
+    if (data.user) {
+      await fetchClientProfile(data.user.id);
     }
   };
 
@@ -256,6 +322,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           currency: 'INR',
         });
       }
+      await fetchClientProfile(data.user.id);
     }
 
     return { error: null };
@@ -294,9 +361,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           redirectUrl
         );
 
-        console.log('📱 Browser session result:', result.type);
+        console.log(' Browser session result:', result.type);
         const resultUrl = 'url' in result ? result.url : undefined;
-        console.log('📱 Result URL:', resultUrl?.substring(0, 150) || 'No URL');
+        console.log(' Result URL:', resultUrl?.substring(0, 150) || 'No URL');
 
         // Handle different result types
         if (result.type === 'success' && resultUrl) {
@@ -443,6 +510,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const completeProfile = async ({
+    firstName,
+    lastName,
+    phoneNumber,
+  }: {
+    firstName: string;
+    lastName: string;
+    phoneNumber: string;
+  }) => {
+    if (!user) {
+      return { error: { message: 'No user is signed in' } };
+    }
+
+    const payload = {
+      id: user.id,
+      email: user.email ?? clientProfile?.email ?? null,
+      first_name: firstName,
+      last_name: lastName,
+      phone_number: phoneNumber,
+      currency: clientProfile?.currency || 'INR',
+    };
+
+    const { error } = await supabase.from('clients').upsert(payload);
+    if (error) {
+      console.error('Error completing profile:', error);
+      return { error };
+    }
+
+    setClientProfile({
+      id: user.id,
+      email: user.email ?? clientProfile?.email ?? null,
+      first_name: firstName,
+      last_name: lastName,
+      phone_number: phoneNumber,
+      currency: clientProfile?.currency || 'INR',
+    });
+    setNeedsProfileCompletion(false);
+    return { error: null };
+  };
+
   const signOut = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
@@ -453,12 +560,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       value={{
         user,
         session,
+        clientProfile,
+        needsProfileCompletion,
         loading,
         signIn,
         signUp,
         signInWithOtp,
         verifyOtp,
         signInWithGoogle,
+        completeProfile,
         signOut,
       }}
     >

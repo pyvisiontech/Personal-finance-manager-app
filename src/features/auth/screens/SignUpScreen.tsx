@@ -23,46 +23,58 @@ const { width } = Dimensions.get('window');
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#f5f5dc',
+    backgroundColor: '#0f2d25',
   },
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#0f2d25',
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
+    paddingTop: 0,
     paddingBottom: 40,
+    justifyContent: 'center',
   },
   backButton: {
     position: 'absolute',
-    top: 16,
-    left: 16,
+    top: 20,
+    left: 20,
     zIndex: 10,
-    padding: 8,
-    backgroundColor: '#f3f4f6',
+    padding: 10,
+    backgroundColor: '#2d2854',
     borderRadius: 20,
   },
   header: {
-    marginTop: 40,
-    marginBottom: 32,
+    marginTop: 0,
+    marginBottom: 24,
     alignItems: 'center',
   },
   title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 8,
+    fontSize: 30,
+    fontWeight: '800',
+    color: '#ffffff',
+    marginBottom: 6,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#6b7280',
-    textAlign: 'center',
-    lineHeight: 24,
+    fontSize: 15,
+    color: '#d1cce8',
+    textAlign: 'left',
+    lineHeight: 22,
   },
   formContainer: {
     width: '100%',
     marginBottom: 24,
+  },
+  formCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 6 },
+    shadowRadius: 10,
+    elevation: 6,
   },
   input: {
     marginBottom: 16,
@@ -125,19 +137,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#f7f7fb',
     borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    paddingVertical: 14,
+    borderColor: '#e4e4ef',
+    borderRadius: 14,
+    paddingVertical: 16,
     paddingHorizontal: 24,
-    minHeight: 50,
+    minHeight: 54,
   },
   googleButtonText: {
     color: '#111827',
     fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 12,
+    fontWeight: '700',
+    marginLeft: 10,
   },
   loginContainer: {
     flexDirection: 'row',
@@ -149,10 +161,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   loginLink: {
-    color: '#3b82f6',
-    fontWeight: '600',
+    color: '#4f46e5',
+    fontWeight: '700',
     fontSize: 14,
-    marginLeft: 4,
+    marginLeft: 6,
   },
 });
 
@@ -287,17 +299,15 @@ export function SignUpScreen({ navigation }: any) {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.header}>
-            <Text style={styles.title}>
-              {step === 'email' ? 'Create Account' : 'Verify Email'}
-            </Text>
+            <Text style={styles.title}>{step === 'email' ? 'Create your account' : 'Verify your email'}</Text>
             <Text style={styles.subtitle}>
               {step === 'email'
-                ? 'Enter your email to get started'
-                : 'Enter the 8-digit code sent to your email'}
+                ? 'Sign up to get started with better money management.'
+                : 'Enter the 8-digit code sent to your email.'}
             </Text>
           </View>
 
-          <View style={styles.formContainer}>
+          <View style={[styles.formContainer, styles.formCard]}>
             {step === 'email' ? (
               <>
                 <Input

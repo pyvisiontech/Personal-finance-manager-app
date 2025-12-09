@@ -18,64 +18,43 @@ import { useAuth } from '../../../context/AuthContext';
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5dc',
+    backgroundColor: '#0f2d25',
   },
   scrollContent: {
     flexGrow: 1,
+    paddingHorizontal: 20,
+    paddingTop: 0,
+    paddingBottom: 40,
     justifyContent: 'center',
-    padding: 20,
   },
   header: {
-    marginBottom: 40,
+    marginBottom: 24,
     alignItems: 'center',
   },
   title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#2C3E50',
-    marginBottom: 12,
-    textAlign: 'center',
+    fontSize: 30,
+    fontWeight: '800',
+    color: '#ffffff',
+    marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: '#4B5563',
-    textAlign: 'center',
-    marginBottom: 32,
-    lineHeight: 24,
-    paddingHorizontal: 20,
-  },
-  featureContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
-    paddingHorizontal: 10,
-    marginBottom: 30,
-  },
-  featureItem: {
-    alignItems: 'center',
-    flex: 1,
-    padding: 10,
-  },
-  featureIcon: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: 'rgba(59, 130, 246, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  featureIconText: {
-    fontSize: 24,
-  },
-  featureText: {
-    fontSize: 12,
-    color: '#4B5563',
-    textAlign: 'center',
-    marginTop: 4,
+    color: '#d1cce8',
+    marginBottom: 24,
+    lineHeight: 22,
   },
   formContainer: {
     width: '100%',
+  },
+  formCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 6 },
+    shadowRadius: 10,
+    elevation: 6,
   },
   input: {
     marginBottom: 16,
@@ -138,20 +117,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#f7f7fb',
     borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    paddingVertical: 14,
+    borderColor: '#e4e4ef',
+    borderRadius: 14,
+    paddingVertical: 16,
     paddingHorizontal: 24,
-    minHeight: 50,
-    marginTop: 12,
+    minHeight: 54,
+    marginTop: 8,
   },
   googleButtonText: {
     color: '#111827',
     fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 12,
+    fontWeight: '700',
+    marginLeft: 10,
   },
   signUpContainer: {
     flexDirection: 'row',
@@ -159,14 +138,14 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   signUpText: {
-    color: '#4B5563',
+    color: '#6b7280',
     fontSize: 14,
   },
   signUpLink: {
-    color: '#3B82F6',
+    color: '#4f46e5',
     fontSize: 14,
-    fontWeight: '600',
-    marginLeft: 4,
+    fontWeight: '700',
+    marginLeft: 6,
   },
 });
 
@@ -282,47 +261,15 @@ export function LoginScreen({ navigation }: any) {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.header}>
-          <Text style={styles.title}>Welcome to Finance Tracker</Text>
+          <Text style={styles.title}>{step === 'email' ? 'Welcome Back' : 'Check your inbox'}</Text>
           <Text style={styles.subtitle}>
-            Take control of your finances and achieve your financial goals with
-            our powerful money management tools.
-          </Text>
-
-          <View style={styles.featureContainer}>
-            <View style={styles.featureItem}>
-              <View style={styles.featureIcon}>
-                <Text style={styles.featureIconText}>💰</Text>
-              </View>
-              <Text style={styles.featureText}>Track Expenses</Text>
-            </View>
-            <View style={styles.featureItem}>
-              <View style={styles.featureIcon}>
-                <Text style={styles.featureIconText}>📈</Text>
-              </View>
-              <Text style={styles.featureText}>Monitor Budgets</Text>
-            </View>
-            <View style={styles.featureItem}>
-              <View style={styles.featureIcon}>
-                <Text style={styles.featureIconText}>🎯</Text>
-              </View>
-              <Text style={styles.featureText}>Reach Goals</Text>
-            </View>
-          </View>
-
-          <Text
-            style={{
-              fontSize: 20,
-              fontWeight: '600',
-              color: '#2C3E50',
-              marginTop: 40,
-              marginBottom: 20,
-            }}
-          >
-            {step === 'email' ? 'Sign in to continue' : 'Verify your email'}
+            {step === 'email'
+              ? 'Sign in to keep tracking your spending and goals.'
+              : 'Enter the 8-digit code we just sent to your email.'}
           </Text>
         </View>
 
-        <View style={styles.formContainer}>
+        <View style={[styles.formContainer, styles.formCard]}>
           {step === 'email' ? (
             <>
               <Input
