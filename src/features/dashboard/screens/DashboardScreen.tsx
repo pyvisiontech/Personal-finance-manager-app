@@ -18,6 +18,7 @@ import { ExpenseOverviewChart } from '../components/ExpenseOverviewChart';
 
 // Hooks
 import { useAuth } from '../../../context/AuthContext';
+import { useFilter } from '../../../context/FilterContext';
 
 // Services
 import { supabase } from '../../../lib/supabase';
@@ -195,26 +196,25 @@ const fetchTransactions = async (userId: string, startDate: string, endDate: str
 export default function DashboardScreen() {
   const navigation = useNavigation<any>(); // Using any as a temporary measure
   const { user } = useAuth();
+  const { filterPeriod, currentDate, updateFilter } = useFilter();
   const [isLoading, setIsLoading] = useState(true);
   const [transactions, setTransactions] = useState<TransactionWithCategory[]>([]);
-  const [filterPeriod, setFilterPeriod] = useState<FilterPeriod>('monthly');
-  const [currentDate, setCurrentDate] = useState<Moment>(moment().startOf('month'));
   const [initialLoad, setInitialLoad] = useState(true);
   const [viewMode, setViewMode] = useState<'expense' | 'income'>('expense');
 
   const handleFilterChange = useCallback((period: FilterPeriod) => {
-    setFilterPeriod(period);
     // Reset to current period when changing filter type
     const now = moment();
-    setCurrentDate(
-      period === 'monthly' ? now.startOf('month') :
-        period === 'weekly' ? now.startOf('week') :
-          period === 'quarterly' ? now.startOf('quarter') :
-            period === 'yearly' ? now.startOf('year') :
-              period === 'half-yearly' ? (now.month() < 6 ? now.startOf('year') : now.startOf('year').add(6, 'months')) :
-                now.startOf('day')
-    );
-  }, []);
+    const newDate = period === 'monthly' ? now.startOf('month') :
+      period === 'weekly' ? now.startOf('week') :
+        period === 'quarterly' ? now.startOf('quarter') :
+          period === 'yearly' ? now.startOf('year') :
+            period === 'half-yearly' ? (now.month() < 6 ? now.startOf('year') : now.startOf('year').add(6, 'months')) :
+              now.startOf('day');
+    
+    // Update the shared filter context
+    updateFilter(period, newDate);
+  }, [updateFilter]);
 
   const { signOut } = useAuth();
 
@@ -226,12 +226,8 @@ export default function DashboardScreen() {
           onPress={async () => {
             try {
               await signOut();
-              // Navigate to the Auth stack which contains LoginScreen
-              // This assumes you have a stack navigator with 'Auth' as the name of your auth stack
-              navigation.reset({
-                index: 0,
-                routes: [{ name: 'Login' }],
-              });
+              // Navigation will be handled automatically by AppNavigator
+              // based on auth state change - no manual navigation needed
             } catch (error) {
               console.error('Error signing out:', error);
               alert('Error signing out. Please try again.');
@@ -303,7 +299,8 @@ export default function DashboardScreen() {
           .single();
 
         if (data?.occurred_at) {
-          setCurrentDate(moment(data.occurred_at).startOf('month'));
+          const earliestDate = moment(data.occurred_at).startOf('month');
+          updateFilter(filterPeriod, earliestDate);
         }
       } catch (error) {
         console.error('Error fetching earliest transaction:', error);
@@ -313,7 +310,7 @@ export default function DashboardScreen() {
     };
 
     getEarliestTransactionDate();
-  }, [user?.id, initialLoad]);
+  }, [user?.id, initialLoad, filterPeriod, updateFilter]);
 
   // Fetch transactions when date range changes or when initial load completes
   // Fetch transactions when date range changes or when screen comes into focus
@@ -415,35 +412,34 @@ export default function DashboardScreen() {
 
   const handleNavigate = useCallback(
     (direction: 'prev' | 'next') => {
-      setCurrentDate((prev) => {
-        if (direction === 'prev') {
-          return filterPeriod === 'monthly'
-            ? moment(prev).subtract(1, 'month').startOf('month')
+      const newDate = direction === 'prev' 
+        ? (filterPeriod === 'monthly'
+            ? moment(currentDate).subtract(1, 'month').startOf('month')
             : filterPeriod === 'weekly'
-              ? moment(prev).subtract(1, 'week').startOf('week')
+              ? moment(currentDate).subtract(1, 'week').startOf('week')
               : filterPeriod === 'quarterly'
-                ? moment(prev).subtract(1, 'quarter').startOf('quarter')
+                ? moment(currentDate).subtract(1, 'quarter').startOf('quarter')
                 : filterPeriod === 'yearly'
-                  ? moment(prev).subtract(1, 'year').startOf('year')
+                  ? moment(currentDate).subtract(1, 'year').startOf('year')
                   : filterPeriod === 'half-yearly'
-                    ? moment(prev).subtract(6, 'months')
-                    : moment(prev).subtract(1, 'day').startOf('day');
-        } else {
-          return filterPeriod === 'monthly'
-            ? moment(prev).add(1, 'month').startOf('month')
+                    ? moment(currentDate).subtract(6, 'months')
+                    : moment(currentDate).subtract(1, 'day').startOf('day'))
+        : (filterPeriod === 'monthly'
+            ? moment(currentDate).add(1, 'month').startOf('month')
             : filterPeriod === 'weekly'
-              ? moment(prev).add(1, 'week').startOf('week')
+              ? moment(currentDate).add(1, 'week').startOf('week')
               : filterPeriod === 'quarterly'
-                ? moment(prev).add(1, 'quarter').startOf('quarter')
+                ? moment(currentDate).add(1, 'quarter').startOf('quarter')
                 : filterPeriod === 'yearly'
-                  ? moment(prev).add(1, 'year').startOf('year')
+                  ? moment(currentDate).add(1, 'year').startOf('year')
                   : filterPeriod === 'half-yearly'
-                    ? moment(prev).add(6, 'months')
-                    : moment(prev).add(1, 'day').startOf('day');
-        }
-      });
+                    ? moment(currentDate).add(6, 'months')
+                    : moment(currentDate).add(1, 'day').startOf('day'));
+      
+      // Update the shared filter context
+      updateFilter(filterPeriod, newDate);
     },
-    [filterPeriod]
+    [filterPeriod, currentDate, updateFilter]
   );
 
   // Get the top 5 categories by amount

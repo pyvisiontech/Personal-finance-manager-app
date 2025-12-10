@@ -66,10 +66,17 @@ const styles = StyleSheet.create({
   column: {
     alignItems: 'center',
   } as ViewStyle,
+  activeColumn: {
+    opacity: 1,
+  } as ViewStyle,
   label: {
     fontSize: 14,
     color: '#6B7280', // gray-500
     marginBottom: 4,
+  } as TextStyle,
+  activeLabel: {
+    color: '#111827', // gray-900
+    fontWeight: '600',
   } as TextStyle,
   amount: {
     fontSize: 18,
@@ -81,5 +88,4 @@ const styles = StyleSheet.create({
   income: {
     color: '#10B981', // emerald-500
   } as TextStyle,
-
 });
