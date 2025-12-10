@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { LoginScreen } from '../features/auth/screens/LoginScreen';
 import { SignUpScreen } from '../features/auth/screens/SignUpScreen';
 import DashboardScreen from '../features/dashboard/screens/DashboardScreen';
+import { WelcomeScreen } from '../features/onboarding/screens/WelcomeScreen';
 import { TransactionsListScreen } from '../features/transactions/screens/TransactionsListScreen';
 import { TransactionsTableScreen } from '../features/transactions/screens/TransactionsTableScreen';
 import ManualTransactionScreen from '../features/transactions/screens/ManualTransactionScreen';
@@ -61,8 +62,16 @@ function MainNavigator() {
   );
 }
 
+function OnboardingNavigator() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="Welcome" component={WelcomeScreen} />
+    </Stack.Navigator>
+  );
+}
+
 export function AppNavigator() {
-  const { user, loading } = useAuth();
+  const { user, loading, needsProfileCompletion } = useAuth();
 
   if (loading) {
     return (
@@ -74,7 +83,7 @@ export function AppNavigator() {
 
   return (
     <NavigationContainer>
-      {user ? <MainNavigator /> : <AuthNavigator />}
+      {user ? (needsProfileCompletion ? <OnboardingNavigator /> : <MainNavigator />) : <AuthNavigator />}
     </NavigationContainer>
   );
 }

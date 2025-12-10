@@ -27,9 +27,11 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
+    "scheme": "personalfinancetracker",
     "plugins": [
       "expo-secure-store",
-      "expo-font"
+      "expo-font",
+      "expo-web-browser"
     ],
     "extra": {
       "eas": {

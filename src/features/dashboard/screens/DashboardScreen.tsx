@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState, useEffect } from 'react';
-import { View, ScrollView, StyleSheet, ActivityIndicator, Text } from 'react-native';
+import { View, ScrollView, StyleSheet, ActivityIndicator, Text, TouchableOpacity } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import moment, { Moment } from 'moment';
 import { useLayoutEffect } from 'react';
@@ -216,12 +216,34 @@ export default function DashboardScreen() {
     );
   }, []);
 
+  const { signOut } = useAuth();
+
   useLayoutEffect(() => {
-    // Removed header filter menu
+    // Add logout button to header
     navigation.setOptions({
-      headerRight: () => null,
+      headerRight: () => (
+        <TouchableOpacity 
+          onPress={async () => {
+            try {
+              await signOut();
+              // Navigate to the Auth stack which contains LoginScreen
+              // This assumes you have a stack navigator with 'Auth' as the name of your auth stack
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'Login' }],
+              });
+            } catch (error) {
+              console.error('Error signing out:', error);
+              alert('Error signing out. Please try again.');
+            }
+          }}
+          style={styles.logoutButton}
+        >
+          <Text style={styles.logoutText}>Logout</Text>
+        </TouchableOpacity>
+      ),
     });
-  }, [navigation]);
+  }, [navigation, signOut]);
 
 
 
@@ -539,6 +561,18 @@ export default function DashboardScreen() {
 }
 
 const styles = StyleSheet.create({
+  logoutButton: {
+    marginRight: 15,
+    padding: 8,
+    backgroundColor: '#f8fafc',
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  logoutText: {
+    color: '#ef4444',
+    fontWeight: '500',
+  },
   headerContainer: {
     backgroundColor: '#f8fafc',
     paddingVertical: 6,

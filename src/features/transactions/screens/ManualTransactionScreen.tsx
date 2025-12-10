@@ -407,7 +407,11 @@ const ManualTransactionScreen = () => {
                       setShowCategoryModal(false);
                     }}
                   >
-                    <Text style={styles.categoryIcon}>{category.icon}</Text>
+                    {category.icon ? (
+                      <Text style={styles.categoryIcon}>{category.icon}</Text>
+                    ) : (
+                      <MaterialIcons name="folder" size={24} color="#666" style={styles.categoryIcon} />
+                    )}
                     <Text style={styles.categoryName}>{category.name}</Text>
                     {selectedCategory?.id === category.id && (
                       <MaterialIcons name="check" style={styles.checkIcon} color="#4CAF50" />
