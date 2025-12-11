@@ -228,24 +228,27 @@ export function LoginScreen({ navigation }: any) {
 
   const handleGoogleSignIn = async () => {
     setLoading(true);
+    let timeoutId: NodeJS.Timeout | null = null;
+    
     try {
       const { error } = await signInWithGoogle();
       if (error) {
+        if (timeoutId) clearTimeout(timeoutId);
         setLoading(false);
         Alert.alert('Error', error.message || 'Google sign in failed');
         return;
       }
       
       // Set a timeout to stop loading if auth doesn't complete within 30 seconds
-      const timeoutId = setTimeout(() => {
+      timeoutId = setTimeout(() => {
         setLoading(false);
         Alert.alert('Timeout', 'Sign-in is taking longer than expected. Please try again.');
       }, 30000);
       
-      // Clear timeout when component unmounts or auth completes
-      // (Auth state change will handle setting loading to false)
-      return () => clearTimeout(timeoutId);
+      // Auth state change will handle setting loading to false and navigation
+      // The timeout will be cleared when component unmounts (which happens after successful auth)
     } catch (error: any) {
+      if (timeoutId) clearTimeout(timeoutId);
       setLoading(false);
       Alert.alert('Error', error.message || 'Google sign in failed');
     }
