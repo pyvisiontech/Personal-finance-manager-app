@@ -485,38 +485,40 @@ export default function DashboardScreen() {
 
   return (
     <View style={styles.container}>
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-        {/* Header with Date Navigation and Filter */}
-        <View style={styles.headerContainer}>
-          <View style={styles.headerContent}>
-            <DateNavigator
-              currentDate={currentDate}
-              onNavigate={handleNavigate}
-              periodLabel={periodLabel}
-              textColor="#ffffff"
+      {/* Header with Date Navigation and Filter */}
+      <View style={styles.headerContainer}>
+        <View style={styles.headerContent}>
+          <DateNavigator
+            currentDate={currentDate}
+            onNavigate={handleNavigate}
+            periodLabel={periodLabel}
+            textColor="#ffffff"
+            iconColor="#ffffff"
+          />
+          <View style={styles.filterButtonContainer}>
+            <FilterMenu
+              selectedPeriod={filterPeriod}
+              onPeriodChange={handleFilterChange}
               iconColor="#ffffff"
             />
-            <View style={styles.filterButtonContainer}>
-              <FilterMenu
-                selectedPeriod={filterPeriod}
-                onPeriodChange={handleFilterChange}
-                iconColor="#ffffff"
-              />
-            </View>
           </View>
         </View>
+      </View>
 
-        {/* Summary Overview - Always show, even with 0 values */}
-        <View style={styles.summaryContainer}>
-          <SummaryOverview
-            totalExpense={processed.totalExpense}
-            totalIncome={processed.totalIncome}
-            balance={processed.balance}
-            onExpensePress={() => setViewMode('expense')}
-            onIncomePress={() => setViewMode('income')}
-            activeView={viewMode}
-          />
-        </View>
+      {/* Summary Overview - Always show, even with 0 values */}
+      <View style={styles.summaryContainer}>
+        <SummaryOverview
+          totalExpense={processed.totalExpense}
+          totalIncome={processed.totalIncome}
+          balance={processed.balance}
+          onExpensePress={() => setViewMode('expense')}
+          onIncomePress={() => setViewMode('income')}
+          activeView={viewMode}
+        />
+      </View>
+
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+
 
         {/* Overview Section */}
         <View style={styles.sectionContainer}>
@@ -599,7 +601,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: '#111827',
-    marginBottom: 12,
+    marginBottom: 1,
     marginLeft: 4,
   },
   summaryContainer: {
