@@ -13,6 +13,7 @@ import { DateNavigator } from '../../dashboard/components/DateNavigator';
 import { SummaryOverview } from '../../dashboard/components/SummaryOverview';
 import { RootStackParamList } from '../../../navigation/types';
 import moment from 'moment';
+import FloatingActionButton from '../../dashboard/components/FloatingActionButton';
 
 interface DateGroup {
   date: string;
@@ -116,30 +117,30 @@ export function TransactionsListScreen() {
   const handleNavigate = useCallback(
     (direction: 'prev' | 'next') => {
       setHasLocalOverride(true); // Mark that user has overridden the date
-      const newDate = direction === 'prev' 
+      const newDate = direction === 'prev'
         ? (filterPeriod === 'monthly'
-            ? moment(currentDate).subtract(1, 'month').startOf('month')
-            : filterPeriod === 'weekly'
-              ? moment(currentDate).subtract(1, 'week').startOf('week')
-              : filterPeriod === 'quarterly'
-                ? moment(currentDate).subtract(1, 'quarter').startOf('quarter')
-                : filterPeriod === 'yearly'
-                  ? moment(currentDate).subtract(1, 'year').startOf('year')
-                  : filterPeriod === 'half-yearly'
-                    ? moment(currentDate).subtract(6, 'months')
-                    : moment(currentDate).subtract(1, 'day').startOf('day'))
+          ? moment(currentDate).subtract(1, 'month').startOf('month')
+          : filterPeriod === 'weekly'
+            ? moment(currentDate).subtract(1, 'week').startOf('week')
+            : filterPeriod === 'quarterly'
+              ? moment(currentDate).subtract(1, 'quarter').startOf('quarter')
+              : filterPeriod === 'yearly'
+                ? moment(currentDate).subtract(1, 'year').startOf('year')
+                : filterPeriod === 'half-yearly'
+                  ? moment(currentDate).subtract(6, 'months')
+                  : moment(currentDate).subtract(1, 'day').startOf('day'))
         : (filterPeriod === 'monthly'
-            ? moment(currentDate).add(1, 'month').startOf('month')
-            : filterPeriod === 'weekly'
-              ? moment(currentDate).add(1, 'week').startOf('week')
-              : filterPeriod === 'quarterly'
-                ? moment(currentDate).add(1, 'quarter').startOf('quarter')
-                : filterPeriod === 'yearly'
-                  ? moment(currentDate).add(1, 'year').startOf('year')
-                  : filterPeriod === 'half-yearly'
-                    ? moment(currentDate).add(6, 'months')
-                    : moment(currentDate).add(1, 'day').startOf('day'));
-      
+          ? moment(currentDate).add(1, 'month').startOf('month')
+          : filterPeriod === 'weekly'
+            ? moment(currentDate).add(1, 'week').startOf('week')
+            : filterPeriod === 'quarterly'
+              ? moment(currentDate).add(1, 'quarter').startOf('quarter')
+              : filterPeriod === 'yearly'
+                ? moment(currentDate).add(1, 'year').startOf('year')
+                : filterPeriod === 'half-yearly'
+                  ? moment(currentDate).add(6, 'months')
+                  : moment(currentDate).add(1, 'day').startOf('day'));
+
       setCurrentDate(newDate);
     },
     [filterPeriod, currentDate]
@@ -180,7 +181,7 @@ export function TransactionsListScreen() {
     return Array.from(groups.values())
       .map(group => ({
         ...group,
-        transactions: group.transactions.sort((a, b) => 
+        transactions: group.transactions.sort((a, b) =>
           Math.abs(Number(b.amount)) - Math.abs(Number(a.amount))
         )
       }))
@@ -392,7 +393,7 @@ export function TransactionsListScreen() {
           <Text style={styles.errorMessage}>
             {error instanceof Error ? error.message : 'Unknown error occurred'}
           </Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             onPress={() => refetch()}
             style={styles.retryButton}
           >
@@ -429,7 +430,9 @@ export function TransactionsListScreen() {
         ) : (
           dateGroups.map(renderDateGroup)
         )}
+        )}
       </ScrollView>
+      <FloatingActionButton />
     </View>
   );
 }

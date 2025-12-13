@@ -210,7 +210,7 @@ export default function DashboardScreen() {
           period === 'yearly' ? now.startOf('year') :
             period === 'half-yearly' ? (now.month() < 6 ? now.startOf('year') : now.startOf('year').add(6, 'months')) :
               now.startOf('day');
-    
+
     // Update the shared filter context
     updateFilter(period, newDate);
   }, [updateFilter]);
@@ -221,7 +221,7 @@ export default function DashboardScreen() {
     // Add logout button to header
     navigation.setOptions({
       headerRight: () => (
-        <TouchableOpacity 
+        <TouchableOpacity
           onPress={async () => {
             try {
               await signOut();
@@ -410,30 +410,30 @@ export default function DashboardScreen() {
 
   const handleNavigate = useCallback(
     (direction: 'prev' | 'next') => {
-      const newDate = direction === 'prev' 
+      const newDate = direction === 'prev'
         ? (filterPeriod === 'monthly'
-            ? moment(currentDate).subtract(1, 'month').startOf('month')
-            : filterPeriod === 'weekly'
-              ? moment(currentDate).subtract(1, 'week').startOf('week')
-              : filterPeriod === 'quarterly'
-                ? moment(currentDate).subtract(1, 'quarter').startOf('quarter')
-                : filterPeriod === 'yearly'
-                  ? moment(currentDate).subtract(1, 'year').startOf('year')
-                  : filterPeriod === 'half-yearly'
-                    ? moment(currentDate).subtract(6, 'months')
-                    : moment(currentDate).subtract(1, 'day').startOf('day'))
+          ? moment(currentDate).subtract(1, 'month').startOf('month')
+          : filterPeriod === 'weekly'
+            ? moment(currentDate).subtract(1, 'week').startOf('week')
+            : filterPeriod === 'quarterly'
+              ? moment(currentDate).subtract(1, 'quarter').startOf('quarter')
+              : filterPeriod === 'yearly'
+                ? moment(currentDate).subtract(1, 'year').startOf('year')
+                : filterPeriod === 'half-yearly'
+                  ? moment(currentDate).subtract(6, 'months')
+                  : moment(currentDate).subtract(1, 'day').startOf('day'))
         : (filterPeriod === 'monthly'
-            ? moment(currentDate).add(1, 'month').startOf('month')
-            : filterPeriod === 'weekly'
-              ? moment(currentDate).add(1, 'week').startOf('week')
-              : filterPeriod === 'quarterly'
-                ? moment(currentDate).add(1, 'quarter').startOf('quarter')
-                : filterPeriod === 'yearly'
-                  ? moment(currentDate).add(1, 'year').startOf('year')
-                  : filterPeriod === 'half-yearly'
-                    ? moment(currentDate).add(6, 'months')
-                    : moment(currentDate).add(1, 'day').startOf('day'));
-      
+          ? moment(currentDate).add(1, 'month').startOf('month')
+          : filterPeriod === 'weekly'
+            ? moment(currentDate).add(1, 'week').startOf('week')
+            : filterPeriod === 'quarterly'
+              ? moment(currentDate).add(1, 'quarter').startOf('quarter')
+              : filterPeriod === 'yearly'
+                ? moment(currentDate).add(1, 'year').startOf('year')
+                : filterPeriod === 'half-yearly'
+                  ? moment(currentDate).add(6, 'months')
+                  : moment(currentDate).add(1, 'day').startOf('day'));
+
       // Update the shared filter context
       updateFilter(filterPeriod, newDate);
     },
@@ -613,7 +613,7 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#f4f1e3',
     position: 'relative',
   },
   scrollView: {
