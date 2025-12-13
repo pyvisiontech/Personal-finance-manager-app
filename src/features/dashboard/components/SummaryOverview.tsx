@@ -36,7 +36,7 @@ export function SummaryOverview({
           {showUnderline && activeView === 'expense' && <View style={styles.underline} />}
         </View>
         <Text style={[styles.amount, styles.expense]}>
-          ₹{displayExpense.toLocaleString('en-IN')}
+          -₹{displayExpense.toLocaleString('en-IN')}
         </Text>
       </TouchableOpacity>
 
@@ -50,14 +50,14 @@ export function SummaryOverview({
           {showUnderline && activeView === 'income' && <View style={styles.underline} />}
         </View>
         <Text style={[styles.amount, styles.income]}>
-          ₹{displayIncome.toLocaleString('en-IN')}
+          +₹{displayIncome.toLocaleString('en-IN')}
         </Text>
       </TouchableOpacity>
 
       <View style={styles.column}>
         <Text style={styles.label}>Total</Text>
         <Text style={[styles.amount, balance < 0 ? styles.expense : styles.income]}>
-          ₹{displayBalance.toLocaleString('en-IN')}
+          {balance < 0 ? '-' : '+'}₹{displayBalance.toLocaleString('en-IN')}
         </Text>
       </View>
     </View>
