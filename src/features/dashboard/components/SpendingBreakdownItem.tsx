@@ -16,33 +16,43 @@ interface SpendingBreakdownItemProps {
 export function SpendingBreakdownItem({ item }: SpendingBreakdownItemProps) {
     return (
         <View style={styles.itemContainer}>
-            <View style={styles.itemHeader}>
-                <View style={styles.itemNameContainer}>
-                    {item.icon && <Text style={styles.icon}>{item.icon}</Text>}
-                    <Text style={styles.itemName}>{item.name}</Text>
+            {/* Left Section: Icon */}
+            <View style={styles.iconContainer}>
+                <Text style={styles.icon}>{item.icon || '📦'}</Text>
+            </View>
+
+            {/* Right Section: Details */}
+            <View style={styles.detailsContainer}>
+                {/* Header: Name and Amount */}
+                <View style={styles.headerRow}>
+                    <Text style={styles.itemName} numberOfLines={1}>{item.name}</Text>
+                    <Text style={[
+                        styles.amountText,
+                        item.amount < 0 ? styles.negative : styles.positive
+                    ]}>
+                        {item.amount < 0 ? '-' : '+'}₹{Math.abs(item.amount).toLocaleString('en-IN')}
+                    </Text>
                 </View>
-                <Text style={[
-                    styles.percentage,
-                    item.amount < 0 ? styles.negative : styles.positive
-                ]}>
-                    {item.amount < 0 ? '-' : '+'}₹{Math.abs(item.amount).toLocaleString('en-IN')}
-                </Text>
-            </View>
-            <View style={styles.progressBarContainer}>
-                <View
-                    style={[
-                        styles.progressBar,
-                        {
-                            width: `${Math.min(item.percentage, 100)}%`,
-                            backgroundColor: item.color,
-                        }
-                    ]}
-                />
-            </View>
-            <View style={styles.amountContainer}>
-                <Text style={styles.amount}>
-                    {item.percentage}%
-                </Text>
+
+                {/* Progress Bar */}
+                <View style={styles.progressBarContainer}>
+                    <View
+                        style={[
+                            styles.progressBar,
+                            {
+                                width: `${Math.min(item.percentage, 100)}%`,
+                                backgroundColor: item.color,
+                            }
+                        ]}
+                    />
+                </View>
+
+                {/* Footer: Percentage */}
+                <View style={styles.footerRow}>
+                    <Text style={styles.percentageText}>
+                        {item.percentage}%
+                    </Text>
+                </View>
             </View>
         </View>
     );
@@ -50,56 +60,58 @@ export function SpendingBreakdownItem({ item }: SpendingBreakdownItemProps) {
 
 const styles = StyleSheet.create({
     itemContainer: {
-        marginBottom: 16,
-    } as ViewStyle,
-    itemHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: 4,
-    } as ViewStyle,
-    itemNameContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        flex: 1,
-    },
-    colorIndicator: {
-        width: 12,
-        height: 12,
-        borderRadius: 6,
+        marginBottom: 16,
+    } as ViewStyle,
+    iconContainer: {
         marginRight: 8,
-    },
+        justifyContent: 'center',
+        alignItems: 'center',
+        width: 40,
+    } as ViewStyle,
     icon: {
-        fontSize: 16,
-        marginRight: 8,
-    },
+        fontSize: 28, // Bigger icon
+    } as TextStyle,
+    detailsContainer: {
+        flex: 1,
+    } as ViewStyle,
+    headerRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 6,
+    } as ViewStyle,
     itemName: {
         fontSize: 14,
         fontWeight: '500',
         color: '#374151',
+        flex: 1,
+        marginRight: 8,
     } as TextStyle,
-    percentage: {
+    amountText: {
         fontSize: 14,
-        fontWeight: '500',
-        color: '#111827', // gray-900
+        fontWeight: '600',
     } as TextStyle,
     progressBarContainer: {
-        height: 6,
+        height: 8,
         backgroundColor: '#F3F4F6', // gray-100
         borderRadius: 3,
         overflow: 'hidden',
+        marginBottom: -12,
     } as ViewStyle,
     progressBar: {
         height: '100%',
         borderRadius: 3,
     } as ViewStyle,
-    amountContainer: {
+    footerRow: {
         flexDirection: 'row',
-        justifyContent: 'flex-end',
-        marginTop: 2,
+        justifyContent: 'flex-end'
     } as ViewStyle,
-    amount: {
-        fontSize: 12,
+    percentageText: {
+        fontSize: 10,
         color: '#000', // gray-500
+        fontWeight: 'bold',
     } as TextStyle,
     negative: {
         color: '#ef4444', // red-500
