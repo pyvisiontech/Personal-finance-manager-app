@@ -592,7 +592,7 @@ const styles = StyleSheet.create({
     right: 16,
   },
   sectionContainer: {
-    marginTop: 24,
+    marginTop: 1,
     paddingHorizontal: 16,
   },
   sectionTitle: {
@@ -603,7 +603,7 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   summaryContainer: {
-    marginTop: 16,
+    marginTop: 1,
     paddingHorizontal: 16,
   },
   emptyStateContainer: {
