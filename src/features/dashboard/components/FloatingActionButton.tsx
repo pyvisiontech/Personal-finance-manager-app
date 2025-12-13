@@ -112,7 +112,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#007AFF',
+    backgroundColor: '#007a33',
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -124,7 +124,7 @@ const styles = StyleSheet.create({
   submenu: {
     position: 'absolute',
     right: 0,
-    backgroundColor: '#007AFF',
+    backgroundColor: '#007a33',
     width: 200,
     height: 56, // From button
     borderRadius: 8,

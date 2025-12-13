@@ -364,9 +364,15 @@ export function TransactionsListScreen() {
           currentDate={currentDate}
           onNavigate={handleNavigate}
           periodLabel={periodLabel}
+          textColor="#ffffff"
+          iconColor="#ffffff"
         />
         <View style={styles.filterButtonContainer}>
-          <FilterMenu selectedPeriod={filterPeriod} onPeriodChange={handleFilterChange} />
+          <FilterMenu
+            selectedPeriod={filterPeriod}
+            onPeriodChange={handleFilterChange}
+            iconColor="#ffffff"
+          />
         </View>
       </View>
     </View>
@@ -430,7 +436,6 @@ export function TransactionsListScreen() {
         ) : (
           dateGroups.map(renderDateGroup)
         )}
-        )}
       </ScrollView>
       <FloatingActionButton />
     </View>
@@ -443,7 +448,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f4f1e3',
   },
   headerContainer: {
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#004d00',
     paddingVertical: 6,
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb',

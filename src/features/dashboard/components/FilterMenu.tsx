@@ -7,9 +7,10 @@ export type FilterPeriod = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'half-
 interface FilterMenuProps {
   selectedPeriod: FilterPeriod;
   onPeriodChange: (period: FilterPeriod) => void;
+  iconColor?: string;
 }
 
-export function FilterMenu({ selectedPeriod, onPeriodChange }: FilterMenuProps) {
+export function FilterMenu({ selectedPeriod, onPeriodChange, iconColor = '#4F46E5' }: FilterMenuProps) {
   const [showMenu, setShowMenu] = React.useState(false);
 
   const periods: { label: string; value: FilterPeriod }[] = [
@@ -27,7 +28,7 @@ export function FilterMenu({ selectedPeriod, onPeriodChange }: FilterMenuProps) 
         style={styles.filterButton}
         onPress={() => setShowMenu(true)}
       >
-        <MaterialIcons name="filter-list" size={24} color="#4F46E5" />
+        <MaterialIcons name="filter-list" size={24} color={iconColor} />
       </TouchableOpacity>
 
       <Modal

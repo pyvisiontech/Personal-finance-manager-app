@@ -488,11 +488,14 @@ export default function DashboardScreen() {
               currentDate={currentDate}
               onNavigate={handleNavigate}
               periodLabel={periodLabel}
+              textColor="#ffffff"
+              iconColor="#ffffff"
             />
             <View style={styles.filterButtonContainer}>
               <FilterMenu
                 selectedPeriod={filterPeriod}
                 onPeriodChange={handleFilterChange}
+                iconColor="#ffffff"
               />
             </View>
           </View>
@@ -567,7 +570,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   headerContainer: {
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#004d00',
     paddingVertical: 6,
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb',

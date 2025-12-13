@@ -7,25 +7,33 @@ interface DateNavigatorProps {
   currentDate: Moment;
   onNavigate: (direction: 'prev' | 'next') => void;
   periodLabel: string;
+  textColor?: string;
+  iconColor?: string;
 }
 
-export function DateNavigator({ currentDate, onNavigate, periodLabel }: DateNavigatorProps) {
+export function DateNavigator({
+  currentDate,
+  onNavigate,
+  periodLabel,
+  textColor = '#111827',
+  iconColor = '#6B7280'
+}: DateNavigatorProps) {
   return (
     <View style={styles.container}>
       <TouchableOpacity
         onPress={() => onNavigate('prev')}
         style={styles.navButton}
       >
-        <MaterialIcons name="chevron-left" size={24} color="#6B7280" />
+        <MaterialIcons name="chevron-left" size={24} color={iconColor} />
       </TouchableOpacity>
-      <Text style={styles.dateText}>
+      <Text style={[styles.dateText, { color: textColor }]}>
         {periodLabel}
       </Text>
       <TouchableOpacity
         onPress={() => onNavigate('next')}
         style={styles.navButton}
       >
-        <MaterialIcons name="chevron-right" size={24} color="#6B7280" />
+        <MaterialIcons name="chevron-right" size={24} color={iconColor} />
       </TouchableOpacity>
     </View>
   );

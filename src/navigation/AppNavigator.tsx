@@ -35,7 +35,7 @@ function HomeStackNavigator() {
   return (
     <HomeStack.Navigator
       screenOptions={{
-        headerStyle: { backgroundColor: '#007AFF' },
+        headerStyle: { backgroundColor: '#004d00' },
         headerTintColor: '#fff',
         headerTitleStyle: { fontWeight: '600' },
       }}
@@ -58,7 +58,7 @@ function TransactionsStackNavigator() {
   return (
     <TransactionsStack.Navigator
       screenOptions={{
-        headerStyle: { backgroundColor: '#007AFF' },
+        headerStyle: { backgroundColor: '#004d00' },
         headerTintColor: '#fff',
         headerTitleStyle: { fontWeight: '600' },
       }}
@@ -79,6 +79,11 @@ function TransactionsStackNavigator() {
         options={({ route }: { route: RouteProp<RootStackParamList, 'ManualTransaction'> }) => ({
           title: route.params?.transaction ? 'Edit Transaction' : 'Add Transaction',
         })}
+      />
+      <TransactionsStack.Screen
+        name="UploadStatement"
+        component={UploadStatementScreen}
+        options={{ title: 'Upload Statement' }}
       />
     </TransactionsStack.Navigator>
   );
