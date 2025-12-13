@@ -8,6 +8,7 @@ interface SummaryOverviewProps {
   onExpensePress?: () => void;
   onIncomePress?: () => void;
   activeView?: 'expense' | 'income';
+  showUnderline?: boolean;
 }
 
 export function SummaryOverview({
@@ -16,7 +17,8 @@ export function SummaryOverview({
   balance,
   onExpensePress,
   onIncomePress,
-  activeView = 'expense'
+  activeView = 'expense',
+  showUnderline = true
 }: SummaryOverviewProps) {
   const displayExpense = Math.abs(totalExpense);
   const displayIncome = Math.abs(totalIncome);
@@ -29,7 +31,10 @@ export function SummaryOverview({
         onPress={onExpensePress}
         activeOpacity={0.7}
       >
-        <Text style={[styles.label, activeView === 'expense' && styles.activeLabel]}>Expense</Text>
+        <View style={styles.labelContainer}>
+          <Text style={[styles.label, activeView === 'expense' && styles.activeLabel]}>Expense</Text>
+          {showUnderline && activeView === 'expense' && <View style={styles.underline} />}
+        </View>
         <Text style={[styles.amount, styles.expense]}>
           ₹{displayExpense.toLocaleString('en-IN')}
         </Text>
@@ -40,7 +45,10 @@ export function SummaryOverview({
         onPress={onIncomePress}
         activeOpacity={0.7}
       >
-        <Text style={[styles.label, activeView === 'income' && styles.activeLabel]}>Income</Text>
+        <View style={styles.labelContainer}>
+          <Text style={[styles.label, activeView === 'income' && styles.activeLabel]}>Income</Text>
+          {showUnderline && activeView === 'income' && <View style={styles.underline} />}
+        </View>
         <Text style={[styles.amount, styles.income]}>
           ₹{displayIncome.toLocaleString('en-IN')}
         </Text>
@@ -69,15 +77,27 @@ const styles = StyleSheet.create({
   activeColumn: {
     opacity: 1,
   } as ViewStyle,
+  labelContainer: {
+    alignItems: 'center',
+    marginBottom: 4,
+  } as ViewStyle,
   label: {
     fontSize: 14,
     color: '#6B7280', // gray-500
-    marginBottom: 4,
   } as TextStyle,
   activeLabel: {
     color: '#111827', // gray-900
     fontWeight: '600',
   } as TextStyle,
+  underline: {
+    position: 'absolute',
+    bottom: -4,
+    left: 0,
+    right: 0,
+    height: 2,
+    backgroundColor: '#111827', // gray-900
+    borderRadius: 1,
+  } as ViewStyle,
   amount: {
     fontSize: 18,
     fontWeight: '700',

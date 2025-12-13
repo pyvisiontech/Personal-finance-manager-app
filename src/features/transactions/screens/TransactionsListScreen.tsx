@@ -1,14 +1,17 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, RefreshControl, StyleSheet } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useQueryClient } from '@tanstack/react-query';
+import { MaterialIcons } from '@expo/vector-icons';
 import { useTransactions } from '../hooks/useTransactions';
 import { useAuth } from '../../../context/AuthContext';
 import { useFilter } from '../../../context/FilterContext';
 import { TransactionWithCategory } from '../../../lib/types';
-import { Card } from '../../../components/Card';
 import { FilterMenu, FilterPeriod } from '../../dashboard/components/FilterMenu';
 import { DateNavigator } from '../../dashboard/components/DateNavigator';
 import { SummaryOverview } from '../../dashboard/components/SummaryOverview';
+import { RootStackParamList } from '../../../navigation/types';
 import moment from 'moment';
 
 interface DateGroup {
@@ -22,6 +25,8 @@ export function TransactionsListScreen() {
   const { user } = useAuth();
   const { filterPeriod: dashboardFilterPeriod, currentDate: dashboardCurrentDate } = useFilter();
   const [refreshing, setRefreshing] = useState(false);
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const queryClient = useQueryClient();
   // Use Dashboard filter as default, but allow local override
   const [filterPeriod, setFilterPeriod] = useState<FilterPeriod>(dashboardFilterPeriod);
   const [currentDate, setCurrentDate] = useState<moment.Moment>(dashboardCurrentDate);
@@ -89,6 +94,10 @@ export function TransactionsListScreen() {
     user?.id || '',
     { startDate, endDate }
   );
+
+  const handleEditTransaction = (transaction: TransactionWithCategory) => {
+    navigation.navigate('ManualTransaction', { transaction });
+  };
 
   const handleFilterChange = (period: FilterPeriod) => {
     setFilterPeriod(period);
@@ -266,8 +275,10 @@ export function TransactionsListScreen() {
     const paymentMethod = getPaymentMethod(transaction);
 
     return (
-      <View
+      <TouchableOpacity
         key={transaction.id}
+        onPress={() => handleEditTransaction(transaction)}
+        activeOpacity={0.7}
         style={[styles.transactionItem, isLast && styles.lastTransactionItem]}
       >
         <View style={styles.transactionLeft}>
@@ -275,7 +286,9 @@ export function TransactionsListScreen() {
             <Text style={styles.categoryIcon}>{categoryIcon}</Text>
           </View>
           <View style={styles.transactionDetails}>
-            <Text style={styles.categoryName}>{categoryName}</Text>
+            <View style={styles.nameRow}>
+              <Text style={styles.categoryName} numberOfLines={1} ellipsizeMode="tail">{categoryName}</Text>
+            </View>
             <View style={styles.paymentMethodContainer}>
               <Text style={styles.paymentMethodIcon}>💳</Text>
               <Text style={styles.paymentMethod}>{paymentMethod}</Text>
@@ -286,8 +299,17 @@ export function TransactionsListScreen() {
           <Text style={[styles.amount, { color: amount.color }]}>
             {amount.text}
           </Text>
+          <TouchableOpacity
+            style={styles.editIconButton}
+            onPress={(e) => {
+              e.stopPropagation();
+              handleEditTransaction(transaction);
+            }}
+          >
+            <MaterialIcons name="edit" size={18} color="#2563eb" />
+          </TouchableOpacity>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -390,6 +412,7 @@ export function TransactionsListScreen() {
         totalExpense={summaryTotals.totalExpense}
         totalIncome={summaryTotals.totalIncome}
         balance={summaryTotals.balance}
+        showUnderline={false}
       />
       <ScrollView
         style={styles.scrollView}
@@ -509,7 +532,38 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: '#111827',
+    flex: 1,
+    marginRight: 8,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 4,
+  },
+  inlineActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  iconButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 6,
+    borderWidth: 0,
+    backgroundColor: 'transparent',
+  },
+  editIconButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 0,
+    backgroundColor: 'transparent',
+    marginLeft: 8,
   },
   paymentMethodContainer: {
     flexDirection: 'row',
@@ -524,7 +578,8 @@ const styles = StyleSheet.create({
     color: '#6b7280',
   },
   transactionRight: {
-    alignItems: 'flex-end',
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   amount: {
     fontSize: 15,

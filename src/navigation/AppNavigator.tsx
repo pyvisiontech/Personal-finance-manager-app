@@ -14,6 +14,8 @@ import ManualTransactionScreen from '../features/transactions/screens/ManualTran
 import { UploadStatementScreen } from '../features/statements/screens/UploadStatementScreen';
 import { View, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { RouteProp } from '@react-navigation/native';
+import { RootStackParamList } from './types';
 
 const RootStack = createNativeStackNavigator();
 const HomeStack = createNativeStackNavigator();
@@ -74,7 +76,9 @@ function TransactionsStackNavigator() {
       <TransactionsStack.Screen
         name="ManualTransaction"
         component={ManualTransactionScreen}
-        options={{ title: 'Add Transaction' }}
+        options={({ route }: { route: RouteProp<RootStackParamList, 'ManualTransaction'> }) => ({
+          title: route.params?.transaction ? 'Edit Transaction' : 'Add Transaction',
+        })}
       />
     </TransactionsStack.Navigator>
   );
@@ -102,8 +106,8 @@ function MainTabs() {
         component={HomeStackNavigator}
         options={{
           tabBarLabel: 'Home',
-          tabBarIcon: ({ color, size }: { color: string; size: number }) => (
-            <Ionicons name="home-outline" color={color} size={size} />
+          tabBarIcon: ({ color, size, focused }: { color: string; size: number; focused: boolean }) => (
+            <Ionicons name={focused ? "home" : "home-outline"} color={color} size={size} />
           ),
         }}
       />
@@ -112,8 +116,8 @@ function MainTabs() {
         component={TransactionsStackNavigator}
         options={{
           tabBarLabel: 'Transactions',
-          tabBarIcon: ({ color, size }: { color: string; size: number }) => (
-            <Ionicons name="list-outline" color={color} size={size} />
+          tabBarIcon: ({ color, size, focused }: { color: string; size: number; focused: boolean }) => (
+            <Ionicons name={focused ? "list" : "list-outline"} color={color} size={size} />
           ),
         }}
       />

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect } from 'react';
 import {
   View,
   Text,
@@ -15,10 +15,12 @@ import {
   ActivityIndicator
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useQueryClient } from '@tanstack/react-query';
 import { RootStackParamList } from '../../../navigation/types';
 import { MaterialIcons } from '@expo/vector-icons';
 import { supabase } from '../../../lib/supabase';
+import { TransactionWithCategory } from '../../../lib/types';
 
 const windowWidth = Dimensions.get('window').width;
 
@@ -193,14 +195,63 @@ const Calculator: React.FC<CalculatorProps> = ({ onTextChange, style }) => {
 
 const ManualTransactionScreen = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const route = useRoute<RouteProp<RootStackParamList, 'ManualTransaction'>>();
+  const existingTransaction = route.params?.transaction as TransactionWithCategory | undefined;
+  const isEditing = !!existingTransaction;
+  const queryClient = useQueryClient();
   const [amount, setAmount] = useState('0');
   const [showCalculator, setShowCalculator] = useState(false);
+
+  // Hide tab bar when this screen is focused
+  useLayoutEffect(() => {
+    navigation.getParent()?.setOptions({
+      tabBarStyle: {
+        height: 0,
+        overflow: 'hidden',
+        borderTopWidth: 0,
+      },
+    });
+
+    return () => {
+      // Show tab bar when leaving this screen
+      navigation.getParent()?.setOptions({
+        tabBarStyle: {
+          backgroundColor: '#f4f1e3',
+          borderTopColor: '#d8d2b8',
+          height: 68,
+          paddingBottom: 10,
+          paddingTop: 8,
+        },
+      });
+    };
+  }, [navigation]);
   const [transactionType, setTransactionType] = useState<'expense' | 'income'>('expense');
   const [note, setNote] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (existingTransaction) {
+      setAmount(Math.abs(existingTransaction.amount).toString());
+      setTransactionType(existingTransaction.type === 'income' ? 'income' : 'expense');
+      setNote(existingTransaction.raw_description || existingTransaction.merchant || '');
+
+      const category =
+        existingTransaction.category_user ||
+        existingTransaction.category_ai ||
+        existingTransaction.category;
+
+      if (category) {
+        setSelectedCategory({
+          id: category.id,
+          name: category.name,
+          icon: category.icon || '📦',
+        });
+      }
+    }
+  }, [existingTransaction]);
 
   // Fetch categories from Supabase
   useEffect(() => {
@@ -240,50 +291,98 @@ const ManualTransactionScreen = () => {
     }
 
     try {
-      // Get the current user
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
       if (!user) throw new Error('User not authenticated');
 
-      // Get the default account for the user
-      const { data: accounts, error: accountError } = await supabase
-        .from('accounts')
-        .select('id')
-        .eq('user_id', user.id)
-        .limit(1);
+      let accountId = existingTransaction?.account_id || null;
 
-      if (accountError) throw accountError;
-      const accountId = accounts?.[0]?.id || null;
+      if (!accountId) {
+        const { data: accounts, error: accountError } = await supabase
+          .from('accounts')
+          .select('id')
+          .eq('user_id', user.id)
+          .limit(1);
 
+        if (accountError) throw accountError;
+        accountId = accounts?.[0]?.id || null;
+      }
 
+      const payload = {
+        account_id: accountId,
+        user_id: user.id,
+        source: existingTransaction?.source || 'manual',
+        amount: Math.abs(parseFloat(amount || '0')) * (transactionType === 'expense' ? -1 : 1),
+        currency: existingTransaction?.currency || 'INR',
+        type: transactionType,
+        raw_description: note || 'Manual transaction',
+        merchant: existingTransaction?.merchant || null,
+        status: existingTransaction?.status || 'final',
+        category_user_id: selectedCategory.id,
+        occurred_at: existingTransaction?.occurred_at || new Date().toISOString(),
+      };
 
+      if (isEditing && existingTransaction) {
+        const { error: updateError } = await supabase
+          .from('transactions')
+          .update(payload)
+          .eq('id', existingTransaction.id);
 
-      // Insert the transaction
-      const { data: transaction, error } = await supabase
-        .from('transactions')
-        .insert([{
-          account_id: accountId,
-          user_id: user.id,
-          source: 'manual', // Marking as manual entry
-          amount: Math.abs(parseFloat(amount)) * (transactionType === 'expense' ? -1 : 1), // Negative for expenses
-          currency: 'INR', // Assuming INR as default currency
-          type: transactionType,
-          raw_description: note || 'Manual transaction',
-          merchant: null, // No merchant for manual entries
-          status: 'final',
-          category_user_id: selectedCategory.id, // Using user's category selection
-          occurred_at: new Date().toISOString(),
-        }])
-        .select()
-        .single();
+        if (updateError) throw updateError;
+      } else {
+        const { error: insertError } = await supabase.from('transactions').insert([payload]);
+        if (insertError) throw insertError;
+      }
 
-      if (error) throw error;
-
-      console.log('Transaction saved:', transaction);
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
       navigation.goBack();
     } catch (error) {
       console.error('Error saving transaction:', error);
       Alert.alert('Error', 'Failed to save transaction. Please try again.');
     }
+  };
+
+  const handleDelete = async () => {
+    if (!isEditing || !existingTransaction) {
+      return;
+    }
+
+    Alert.alert(
+      'Delete Transaction',
+      'Are you sure you want to delete this transaction? This action cannot be undone.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const { error: deleteError } = await supabase
+                .from('transactions')
+                .delete()
+                .eq('id', existingTransaction.id);
+
+              if (deleteError) {
+                console.error('Error deleting transaction:', deleteError);
+                Alert.alert('Error', 'Failed to delete transaction. Please try again.');
+                return;
+              }
+
+              queryClient.invalidateQueries({ queryKey: ['transactions'] });
+              navigation.goBack();
+            } catch (error) {
+              console.error('Error deleting transaction:', error);
+              Alert.alert('Error', 'Failed to delete transaction. Please try again.');
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -293,10 +392,20 @@ const ManualTransactionScreen = () => {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.cancelButton}>CANCEL</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>Add Transaction</Text>
-        <TouchableOpacity onPress={handleSave}>
-          <Text style={styles.saveButton}>SAVE</Text>
-        </TouchableOpacity>
+        {isEditing ? (
+          <>
+            <TouchableOpacity onPress={handleSave}>
+              <Text style={styles.title}>UPDATE</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleDelete} style={styles.deleteIconButton}>
+              <MaterialIcons name="delete" size={24} color="#b91c1c" />
+            </TouchableOpacity>
+          </>
+        ) : (
+          <TouchableOpacity onPress={handleSave} style={styles.saveButtonRight}>
+            <Text style={styles.title}>SAVE</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <ScrollView style={styles.content} keyboardShouldPersistTaps="handled">
@@ -445,6 +554,19 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
   },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 'auto',
+  },
+  saveButtonRight: {
+    marginLeft: 'auto',
+  },
+  iconButton: {
+    padding: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   cancelButton: {
     color: '#007AFF',
     fontSize: 16,
@@ -454,9 +576,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  deleteIconButton: {
+    padding: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  deleteButton: {
+    padding: 4,
+  },
   title: {
     fontSize: 18,
     fontWeight: '600',
+    color: '#007AFF',
   },
   content: {
     flex: 1,
