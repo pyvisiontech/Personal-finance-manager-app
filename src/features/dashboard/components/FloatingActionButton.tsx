@@ -2,13 +2,11 @@ import React, { useRef, useState } from 'react';
 import { View, TouchableOpacity, Animated, StyleSheet, Text } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../../../navigation/types';
 
 const FloatingActionButton = () => {
   const [isOpen, setIsOpen] = useState(false);
   const animation = useRef(new Animated.Value(0)).current;
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation = useNavigation<any>();
 
   const toggleMenu = () => {
     const toValue = isOpen ? 0 : 1;
@@ -28,7 +26,7 @@ const FloatingActionButton = () => {
   };
 
   const addManualTransaction = () => {
-    navigation.navigate('ManualTransaction');
+    navigation.navigate('TransactionsTab', { screen: 'ManualTransaction' });
     toggleMenu();
   };
 

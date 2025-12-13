@@ -1,4 +1,5 @@
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { TransactionWithCategory } from '../lib/types';
 
 export type RootStackParamList = {
   // Auth Stack
@@ -10,7 +11,7 @@ export type RootStackParamList = {
   Transactions: undefined;
   TransactionsTable: undefined;
   UploadStatement: undefined;
-  ManualTransaction: undefined;
+  ManualTransaction: { transaction?: TransactionWithCategory } | undefined;
 };
 
 // Create a type for navigation props

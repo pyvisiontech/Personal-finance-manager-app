@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useLayoutEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -8,12 +8,14 @@ import {
   TouchableOpacity, 
   ActivityIndicator 
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { Button } from '../../../components/Button';
 import { Card } from '../../../components/Card';
 import { useUploadStatement, usePickDocument } from '../hooks/useUploadStatement';
 import { useAuth } from '../../../context/AuthContext';
 
 export function UploadStatementScreen() {
+  const navigation = useNavigation();
   const { user } = useAuth();
   const uploadStatement = useUploadStatement();
   const pickDocument = usePickDocument();
@@ -22,6 +24,30 @@ export function UploadStatementScreen() {
     name: string; 
     type: string 
   } | null>(null);
+
+  // Hide tab bar when this screen is focused
+  useLayoutEffect(() => {
+    navigation.getParent()?.setOptions({
+      tabBarStyle: {
+        height: 0,
+        overflow: 'hidden',
+        borderTopWidth: 0,
+      },
+    });
+
+    return () => {
+      // Show tab bar when leaving this screen
+      navigation.getParent()?.setOptions({
+        tabBarStyle: {
+          backgroundColor: '#f4f1e3',
+          borderTopColor: '#d8d2b8',
+          height: 68,
+          paddingBottom: 10,
+          paddingTop: 8,
+        },
+      });
+    };
+  }, [navigation]);
 
   const handlePickFile = async () => {
     const file = await pickDocument();

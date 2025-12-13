@@ -38,6 +38,7 @@ export function useUploadStatement() {
     client_id: string;
     file_id: string;
     signed_url: string;
+     accountant_id: null 
   }) => {
     // Similar to Next.js approach: notify backend but don't fail upload if it fails
     try {
@@ -163,6 +164,7 @@ export function useUploadStatement() {
         client_id: userId,
         file_id: storagePath,
         signed_url: signedUrl,
+         accountant_id: null 
       }).catch((error) => {
         // Log error but don't fail the upload
         console.error('Backend notification failed (non-blocking):', error);
