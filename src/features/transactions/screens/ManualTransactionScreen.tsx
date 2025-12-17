@@ -245,6 +245,11 @@ const ManualTransactionScreen = () => {
       setTransactionType(existingTransaction.type === 'income' ? 'income' : 'expense');
       setNote(existingTransaction.raw_description || existingTransaction.merchant || '');
 
+      // Set the date from the existing transaction
+      if (existingTransaction.occurred_at) {
+        setDate(new Date(existingTransaction.occurred_at));
+      }
+
       const category =
         existingTransaction.category_user ||
         existingTransaction.category_ai ||
@@ -322,6 +327,7 @@ const ManualTransactionScreen = () => {
       const accountId = accounts?.[0]?.id || null;
 
 
+      // Always use the selected date from the date picker
       const payload = {
         account_id: accountId,
         user_id: user.id,
@@ -333,7 +339,7 @@ const ManualTransactionScreen = () => {
         merchant: existingTransaction?.merchant || null,
         status: existingTransaction?.status || 'final',
         category_user_id: selectedCategory.id,
-        occurred_at: existingTransaction?.occurred_at || new Date().toISOString(),
+        occurred_at: date.toISOString(), // Use the selected date from date picker
       };
 
       if (isEditing && existingTransaction) {
@@ -469,7 +475,15 @@ const ManualTransactionScreen = () => {
               onChange={(event, selectedDate) => {
                 setShowDatePicker(false);
                 if (selectedDate) {
-                  setDate(selectedDate);
+                  // Preserve the current time-of-day when changing the date to avoid defaulting to midnight
+                  const withExistingTime = new Date(selectedDate);
+                  withExistingTime.setHours(
+                    date.getHours(),
+                    date.getMinutes(),
+                    date.getSeconds(),
+                    date.getMilliseconds()
+                  );
+                  setDate(withExistingTime);
                 }
               }}
               maximumDate={new Date()}

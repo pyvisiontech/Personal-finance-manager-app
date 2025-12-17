@@ -191,7 +191,9 @@ export function TransactionsListScreen() {
   const formatAmount = (amount: number, type: string) => {
     const sign = type === 'income' ? '+' : '-';
     const color = type === 'income' ? '#34C759' : '#FF3B30';
-    return { text: `${sign}₹${Math.abs(amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, color };
+    const abs = Math.abs(amount);
+    const formatted = abs.toLocaleString('en-IN', { maximumFractionDigits: 0 });
+    return { text: `${sign}₹${formatted}`, color };
   };
 
   const formatDateShort = (dateString: string) => {

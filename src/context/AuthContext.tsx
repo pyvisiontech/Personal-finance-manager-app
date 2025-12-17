@@ -30,6 +30,7 @@ interface AuthContextType {
   clientProfile: ClientProfile | null;
   needsProfileCompletion: boolean;
   loading: boolean;
+  authReady: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (payload: SignUpPayload) => Promise<void>;
   signInWithOtp: (email: string) => Promise<{ error: any }>;
@@ -51,6 +52,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [clientProfile, setClientProfile] = useState<ClientProfile | null>(null);
   const [needsProfileCompletion, setNeedsProfileCompletion] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [authReady, setAuthReady] = useState(false);
 
   const evaluateProfileNeedsCompletion = (profile: ClientProfile | null) => {
     if (!profile) return true;
@@ -91,9 +93,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(session?.user ?? null);
       if (session?.user) {
         await fetchClientProfile(session.user.id);
+        setAuthReady(true);
       } else {
         setClientProfile(null);
         setNeedsProfileCompletion(false);
+        setAuthReady(false);
       }
       setLoading(false);
     });
@@ -105,7 +109,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('Auth state changed:', event, 'Has session:', !!session, 'User:', session?.user?.email);
       setSession(session);
       setUser(session?.user ?? null);
-      setLoading(true);
+      setAuthReady(!!session?.user);
       
       // Log auth events for debugging
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
@@ -225,6 +229,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       linkingSubscription.remove();
     };
   }, []);
+
+  // Debug: log snapshots of auth state to help diagnose loading issues
+  useEffect(() => {
+    console.log('AuthContext snapshot:', {
+      hasUser: !!user,
+      userId: user?.id,
+      loading,
+      authReady,
+    });
+  }, [user, loading, authReady]);
 
   const signIn = async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -563,6 +577,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         clientProfile,
         needsProfileCompletion,
         loading,
+        authReady,
         signIn,
         signUp,
         signInWithOtp,

@@ -61,5 +61,10 @@ export function useTransactions(userId: string, filters?: { startDate?: string; 
     },
     enabled: !!userId, // Only run the query if userId exists
     retry: 2, // Retry failed requests twice before showing an error
+    staleTime: Infinity, // Never become stale; refetch only via explicit invalidation (e.g., on add/edit/delete)
+    gcTime: 1000 * 60 * 10, // Keep unused data in cache for 10 minutes (formerly cacheTime)
+    refetchOnMount: false, // Don't refetch when component mounts if data exists
+    refetchOnWindowFocus: false, // Don't refetch when window regains focus
+    refetchOnReconnect: false, // Don't refetch on reconnect
   });
 }

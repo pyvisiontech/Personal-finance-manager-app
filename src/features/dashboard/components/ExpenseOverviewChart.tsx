@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextStyle, ViewStyle } from 'react-native';
 import { PieChart } from 'react-native-gifted-charts';
 
 import { SpendingBreakdownItem, SpendingItem } from './SpendingBreakdownItem';
+import { CategoryTransactionList } from './CategoryTransactionList';
+import { Transaction, TransactionWithCategory } from '../../../lib/types';
 
 interface ExpenseOverviewChartProps {
   chartData: {
@@ -12,9 +14,28 @@ interface ExpenseOverviewChartProps {
   }[];
   totalExpense: number;
   breakdown: SpendingItem[];
+  transactions?: TransactionWithCategory[];
 }
 
-export function ExpenseOverviewChart({ chartData, totalExpense, breakdown }: ExpenseOverviewChartProps) {
+export function ExpenseOverviewChart({ chartData, totalExpense, breakdown, transactions = [] }: ExpenseOverviewChartProps) {
+  const [expandedCategoryId, setExpandedCategoryId] = useState<string | null>(null);
+
+  const handleCategoryPress = (categoryId: string | undefined) => {
+    if (!categoryId) return;
+    setExpandedCategoryId(expandedCategoryId === categoryId ? null : categoryId);
+  };
+
+  const getCategoryTransactions = (categoryId: string | undefined) => {
+    if (!categoryId || !transactions) return [];
+    return transactions.filter((tx) => {
+      const category = tx.category_user || tx.category_ai;
+      // Handle uncategorized case
+      if (categoryId === 'uncategorized') {
+        return !tx.category_user && !tx.category_ai;
+      }
+      return category && category.id === categoryId;
+    });
+  };
   return (
     <View style={styles.container}>
 
@@ -53,9 +74,27 @@ export function ExpenseOverviewChart({ chartData, totalExpense, breakdown }: Exp
 
           {/* Legend */}
           <View style={styles.legendContainer}>
-            {breakdown.map((item, index) => (
-              <SpendingBreakdownItem key={index} item={item} />
-            ))}
+            {breakdown.map((item, index) => {
+              const categoryId = item.categoryId;
+              const isExpanded = expandedCategoryId === categoryId;
+              const categoryTransactions = getCategoryTransactions(categoryId);
+
+              return (
+                <View key={index}>
+                  <SpendingBreakdownItem 
+                    item={item} 
+                    onPress={() => handleCategoryPress(categoryId)}
+                    expanded={isExpanded}
+                  />
+                  {isExpanded && categoryTransactions.length > 0 && (
+                    <CategoryTransactionList 
+                      transactions={categoryTransactions}
+                      categoryColor={item.color}
+                    />
+                  )}
+                </View>
+              );
+            })}
           </View>
         </View>
       ) : (
@@ -92,8 +131,8 @@ const styles = StyleSheet.create({
     position: 'relative',
     height: 200,
     width: 200,
-    height: 160,
-    width: 160,
+    // height: 160,
+    // width: 160,
     alignItems: 'center',
     justifyContent: 'center',
   } as ViewStyle,

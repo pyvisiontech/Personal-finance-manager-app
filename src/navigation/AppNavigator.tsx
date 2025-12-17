@@ -141,7 +141,9 @@ function OnboardingNavigator() {
 export function AppNavigator() {
   const { user, loading, needsProfileCompletion } = useAuth();
 
-  if (loading) {
+  // Only block on the initial bootstrap when no user is present.
+  // If a user exists, render immediately to avoid a stuck loading screen.
+  if (loading && !user) {
     return (
       <View className="flex-1 justify-center items-center">
         <Text>Loading...</Text>
