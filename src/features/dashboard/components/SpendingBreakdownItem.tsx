@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TextStyle, ViewStyle } from 'react-native';
+import { View, Text, StyleSheet, TextStyle, ViewStyle, TouchableOpacity } from 'react-native';
 
 export interface SpendingItem {
     name: string;
@@ -7,62 +7,78 @@ export interface SpendingItem {
     percentage: number;
     color: string;
     icon?: string;
+    categoryId?: string; // Add categoryId to identify the category
 }
 
 interface SpendingBreakdownItemProps {
     item: SpendingItem;
+    onPress?: () => void;
+    expanded?: boolean;
 }
 
-export function SpendingBreakdownItem({ item }: SpendingBreakdownItemProps) {
+export function SpendingBreakdownItem({ item, onPress, expanded }: SpendingBreakdownItemProps) {
     return (
-        <View style={styles.itemContainer}>
-            {/* Left Section: Icon */}
-            <View style={styles.iconContainer}>
-                <Text style={styles.icon}>{item.icon || '📦'}</Text>
-            </View>
-
-            {/* Right Section: Details */}
-            <View style={styles.detailsContainer}>
-                {/* Header: Name and Amount */}
-                <View style={styles.headerRow}>
-                    <Text style={styles.itemName} numberOfLines={1}>{item.name}</Text>
-                    <Text style={[
-                        styles.amountText,
-                        item.amount < 0 ? styles.negative : styles.positive
-                    ]}>
-                        {item.amount < 0 ? '-' : '+'}₹{Math.abs(item.amount).toLocaleString('en-IN')}
-                    </Text>
+        <View style={styles.wrapperContainer}>
+            <TouchableOpacity 
+                style={styles.itemContainer}
+                onPress={onPress}
+                activeOpacity={0.7}
+            >
+                {/* Left Section: Icon */}
+                <View style={styles.iconContainer}>
+                    <Text style={styles.icon}>{item.icon || '📦'}</Text>
                 </View>
 
-                {/* Progress Bar */}
-                <View style={styles.progressBarContainer}>
-                    <View
-                        style={[
-                            styles.progressBar,
-                            {
-                                width: `${Math.min(item.percentage, 100)}%`,
-                                backgroundColor: item.color,
-                            }
-                        ]}
-                    />
-                </View>
+                {/* Right Section: Details */}
+                <View style={styles.detailsContainer}>
+                    {/* Header: Name and Amount */}
+                    <View style={styles.headerRow}>
+                        <Text style={styles.itemName} numberOfLines={1}>{item.name}</Text>
+                        <Text style={[
+                            styles.amountText,
+                            item.amount < 0 ? styles.negative : styles.positive
+                        ]}>
+                            {item.amount < 0 ? '-' : '+'}₹{Math.abs(item.amount).toLocaleString('en-IN')}
+                        </Text>
+                    </View>
 
-                {/* Footer: Percentage */}
-                <View style={styles.footerRow}>
-                    <Text style={styles.percentageText}>
-                        {item.percentage}%
-                    </Text>
+                    {/* Progress Bar - Clickable area */}
+                    <View style={styles.progressBarContainer}>
+                        <View
+                            style={[
+                                styles.progressBar,
+                                {
+                                    width: `${Math.min(item.percentage, 100)}%`,
+                                    backgroundColor: item.color,
+                                }
+                            ]}
+                        />
+                    </View>
+
+                    {/* Footer: Percentage */}
+                    <View style={styles.footerRow}>
+                        <Text style={styles.percentageText}>
+                            {item.percentage}%
+                        </Text>
+                        {expanded !== undefined && (
+                            <Text style={styles.expandIcon}>
+                                {expanded ? '▼' : '▶'}
+                            </Text>
+                        )}
+                    </View>
                 </View>
-            </View>
+            </TouchableOpacity>
         </View>
     );
 }
 
 const styles = StyleSheet.create({
+    wrapperContainer: {
+        marginBottom: 16,
+    } as ViewStyle,
     itemContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 16,
     } as ViewStyle,
     iconContainer: {
         marginRight: 8,
@@ -106,12 +122,18 @@ const styles = StyleSheet.create({
     } as ViewStyle,
     footerRow: {
         flexDirection: 'row',
-        justifyContent: 'flex-end'
+        justifyContent: 'flex-end',
+        alignItems: 'center',
+        gap: 8,
     } as ViewStyle,
     percentageText: {
         fontSize: 10,
         color: '#000', // gray-500
         fontWeight: 'bold',
+    } as TextStyle,
+    expandIcon: {
+        fontSize: 10,
+        color: '#6b7280',
     } as TextStyle,
     negative: {
         color: '#ef4444', // red-500

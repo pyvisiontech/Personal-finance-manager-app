@@ -1,13 +1,13 @@
 import React, { useCallback, useMemo, useState, useEffect } from 'react';
 import { View, ScrollView, StyleSheet, ActivityIndicator, Text, TouchableOpacity } from 'react-native';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import moment, { Moment } from 'moment';
 import { useLayoutEffect } from 'react';
 import FloatingActionButton from '../components/FloatingActionButton';
 
 
 // Types
-import { Transaction, Category } from '../../../lib/types';
+import { Transaction, Category, TransactionWithCategory } from '../../../lib/types';
 
 // Components
 import { DateNavigator } from '../components/DateNavigator';
@@ -19,9 +19,7 @@ import { ExpenseOverviewChart } from '../components/ExpenseOverviewChart';
 // Hooks
 import { useAuth } from '../../../context/AuthContext';
 import { useFilter } from '../../../context/FilterContext';
-
-// Services
-import { supabase } from '../../../lib/supabase';
+import { useTransactions } from '../../transactions/hooks/useTransactions';
 
 type RootStackParamList = {
   Dashboard: undefined;
@@ -67,10 +65,6 @@ interface CategoryMap {
   };
 }
 
-interface TransactionWithCategory extends Transaction {
-  category_user: Category | null;
-  category_ai: Category | null;
-}
 
 function processTransactionData(
   transactions: TransactionWithCategory[]
@@ -105,30 +99,26 @@ function processTransactionData(
     categoryMap[categoryId].amount += Math.abs(tx.amount);
   });
 
-  // Sort categories by amount (descending)
-  const sortedCategories = Object.entries(categoryMap)
-    .sort((a, b) => b[1].amount - a[1].amount)
+  // Sort categories by amount (descending) and prepare chart/breakdown data
+  const sortedEntries = Object.entries(categoryMap)
+    .sort((a, b) => b[1].amount - a[1].amount);
+
+  // Prepare chart data
+  const chartData = sortedEntries
     .map(([id, data], index) => ({
-      ...data,
-      // Assign color based on rank (index)
-      color: pieColors[index % pieColors.length]
+      value: data.amount,
+      color: pieColors[index % pieColors.length],
+      text: data.name,
     }));
 
-  // Prepare chart data (top 5 categories)
-  const chartData = sortedCategories
-    .map((category) => ({
-      value: category.amount,
-      color: category.color,
-      text: category.name,
-    }));
-
-  // Prepare breakdown data
-  const breakdown = sortedCategories.map((category) => ({
-    name: category.name,
-    amount: -category.amount, // Negate to show as expense
-    percentage: totalExpense > 0 ? Math.round((category.amount / totalExpense) * 100) : 0,
-    color: category.color,
-    icon: category.icon,
+  // Prepare breakdown data with categoryId
+  const breakdown = sortedEntries.map(([id, data], index) => ({
+    name: data.name,
+    amount: -data.amount, // Negate to show as expense
+    percentage: totalExpense > 0 ? Math.round((data.amount / totalExpense) * 100) : 0,
+    color: pieColors[index % pieColors.length],
+    icon: data.icon,
+    categoryId: id,
   }));
 
   return {
@@ -140,69 +130,13 @@ function processTransactionData(
   };
 }
 
-const fetchTransactions = async (userId: string, startDate: string, endDate: string): Promise<TransactionWithCategory[]> => {
-  try {
-    const { data, error } = await supabase
-      .from('transactions')
-      .select(`
-        *,
-        category_user:category_user_id (
-          id,
-          name,
-          icon
-        ),
-        category_ai:category_ai_id (
-          id,
-          name,
-          icon
-        )
-      `)
-      .eq('user_id', userId)
-      .gte('occurred_at', startDate)
-      .lte('occurred_at', endDate)
-      .order('occurred_at', { ascending: false });
-
-    if (error) {
-      throw error;
-    }
-
-    if (!data) {
-      console.log('No transaction data returned from Supabase');
-      return [];
-    }
-
-    // Type guard to ensure data matches TransactionWithCategory
-    const isValidTransaction = (tx: any): tx is TransactionWithCategory => {
-      return (
-        tx &&
-        typeof tx.id === 'string' &&
-        typeof tx.amount === 'number' &&
-        (tx.category_user === null || typeof tx.category_user === 'object') &&
-        (tx.category_ai === null || typeof tx.category_ai === 'object')
-      );
-    };
-
-    return data.filter(isValidTransaction);
-  } catch (error) {
-    console.error('Error in fetchTransactions:', {
-      error,
-      userId,
-      startDate,
-      endDate,
-      message: error instanceof Error ? error.message : 'Unknown error'
-    });
-    return [];
-  }
-};
 
 export default function DashboardScreen() {
   const navigation = useNavigation<any>(); // Using any as a temporary measure
-  const { user } = useAuth();
+  const { user, authReady } = useAuth();
   const { filterPeriod, currentDate, updateFilter } = useFilter();
-  const [isLoading, setIsLoading] = useState(true);
-  const [transactions, setTransactions] = useState<TransactionWithCategory[]>([]);
-  const [initialLoad, setInitialLoad] = useState(true);
   const [viewMode, setViewMode] = useState<'expense' | 'income'>('expense');
+
 
   const handleFilterChange = useCallback((period: FilterPeriod) => {
     // Reset to current period when changing filter type
@@ -284,58 +218,10 @@ export default function DashboardScreen() {
     }
   }, [filterPeriod, currentDate]);
 
-
-
-  // Fetch the earliest transaction date when user changes
-  useEffect(() => {
-    const getEarliestTransactionDate = async () => {
-      if (!user?.id || !initialLoad) return;
-
-      try {
-        const { data } = await supabase
-          .from('transactions')
-          .select('occurred_at')
-          .eq('user_id', user.id)
-          .order('occurred_at', { ascending: true })
-          .limit(1)
-          .single();
-
-        if (data?.occurred_at) {
-          const earliestDate = moment(data.occurred_at).startOf('month');
-          updateFilter(filterPeriod, earliestDate);
-        }
-      } catch (error) {
-        console.error('Error fetching earliest transaction:', error);
-      } finally {
-        setInitialLoad(false);
-      }
-    };
-
-    getEarliestTransactionDate();
-  }, [user?.id, initialLoad, filterPeriod, updateFilter]);
-
-  // Fetch transactions when date range changes or when initial load completes
-  // Fetch transactions when date range changes or when screen comes into focus
-  useFocusEffect(
-    useCallback(() => {
-      const loadTransactions = async () => {
-        if (!user?.id) return;
-
-        setIsLoading(true);
-        try {
-          const data = await fetchTransactions(user.id, startDate, endDate);
-          console.log('Fetched transactions:', data.length);
-          setTransactions(data);
-        } catch (error) {
-          console.error('Failed to load transactions:', error);
-        } finally {
-          setIsLoading(false);
-          setInitialLoad(false);
-        }
-      };
-
-      loadTransactions();
-    }, [user?.id, startDate, endDate])
+  // Use React Query hook for transactions - data is cached and only refetches when invalidated
+  const { data: transactions = [], isLoading, isFetching } = useTransactions(
+    user?.id || '',
+    { startDate, endDate }
   );
 
   // Process transactions data for the UI
@@ -377,26 +263,23 @@ export default function DashboardScreen() {
       categoryMap[categoryId].amount += Math.abs(tx.amount);
     });
 
-    const sortedCategories = Object.entries(categoryMap)
-      .sort((a, b) => b[1].amount - a[1].amount)
+    const sortedEntries = Object.entries(categoryMap)
+      .sort((a, b) => b[1].amount - a[1].amount);
+
+    const chartData = sortedEntries
       .map(([id, data], index) => ({
-        ...data,
-        color: pieColors[index % pieColors.length]
+        value: data.amount,
+        color: pieColors[index % pieColors.length],
+        text: data.name,
       }));
 
-    const chartData = sortedCategories
-      .map((category) => ({
-        value: category.amount,
-        color: category.color,
-        text: category.name,
-      }));
-
-    const breakdown = sortedCategories.map((category) => ({
-      name: category.name,
-      amount: category.amount,
-      percentage: totalIncome > 0 ? Math.round((category.amount / totalIncome) * 100) : 0,
-      color: category.color,
-      icon: category.icon,
+    const breakdown = sortedEntries.map(([id, data], index) => ({
+      name: data.name,
+      amount: data.amount,
+      percentage: totalIncome > 0 ? Math.round((data.amount / totalIncome) * 100) : 0,
+      color: pieColors[index % pieColors.length],
+      icon: data.icon,
+      categoryId: id,
     }));
 
     return {
@@ -471,7 +354,9 @@ export default function DashboardScreen() {
     }
   }, [filterPeriod, currentDate]);
 
-  if (isLoading) {
+  // Show full-screen loading only on initial load when there's no cached data
+  // If data exists but is refetching, show the cached data (no loading screen)
+  if (!authReady || (isLoading && transactions.length === 0)) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#4F46E5" />
@@ -531,6 +416,10 @@ export default function DashboardScreen() {
               chartData={viewMode === 'expense' ? processed.chartData : processedIncome.chartData}
               totalExpense={viewMode === 'expense' ? processed.totalExpense : processedIncome.totalIncome}
               breakdown={viewMode === 'expense' ? topCategories : processedIncome.breakdown}
+              transactions={viewMode === 'expense' 
+                ? transactions.filter(tx => tx.type === 'expense')
+                : transactions.filter(tx => tx.type === 'income')
+              }
             />
           ) : (
             <View style={[styles.emptyState, styles.chartPlaceholder]}>
