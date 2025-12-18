@@ -11,7 +11,6 @@ import { TransactionWithCategory } from '../../../lib/types';
 import { FilterMenu, FilterPeriod } from '../../dashboard/components/FilterMenu';
 import { DateNavigator } from '../../dashboard/components/DateNavigator';
 import { SummaryOverview } from '../../dashboard/components/SummaryOverview';
-import { TotalOverviewChart } from '../../dashboard/components/TotalOverviewChart';
 import { RootStackParamList } from '../../../navigation/types';
 import moment from 'moment';
 import FloatingActionButton from '../../dashboard/components/FloatingActionButton';
@@ -95,74 +94,9 @@ export function TransactionsListScreen() {
     }
   }, [filterPeriod, currentDate]);
 
-  // Previous period range for comparison in Total view
-  const { prevStartDate, prevEndDate, comparisonLabel } = useMemo(() => {
-    let prevStart: string;
-    let prevEnd: string;
-    let label: string;
-
-    switch (filterPeriod) {
-      case 'daily': {
-        const prev = moment(currentDate).subtract(1, 'day');
-        prevStart = prev.startOf('day').format('YYYY-MM-DD HH:mm:ss');
-        prevEnd = prev.endOf('day').format('YYYY-MM-DD HH:mm:ss');
-        label = 'the previous day';
-        break;
-      }
-      case 'weekly': {
-        const prev = moment(currentDate).subtract(1, 'week');
-        prevStart = prev.startOf('week').format('YYYY-MM-DD HH:mm:ss');
-        prevEnd = prev.endOf('week').format('YYYY-MM-DD HH:mm:ss');
-        label = 'last week';
-        break;
-      }
-      case 'quarterly': {
-        const prev = moment(currentDate).subtract(1, 'quarter');
-        prevStart = prev.startOf('quarter').format('YYYY-MM-DD HH:mm:ss');
-        prevEnd = prev.endOf('quarter').format('YYYY-MM-DD HH:mm:ss');
-        label = 'last quarter';
-        break;
-      }
-      case 'yearly': {
-        const prev = moment(currentDate).subtract(1, 'year');
-        prevStart = prev.startOf('year').format('YYYY-MM-DD HH:mm:ss');
-        prevEnd = prev.endOf('year').format('YYYY-MM-DD HH:mm:ss');
-        label = 'last year';
-        break;
-      }
-      case 'half-yearly': {
-        const prev = moment(currentDate).subtract(6, 'months');
-        prevStart = prev.startOf('month').format('YYYY-MM-DD HH:mm:ss');
-        prevEnd = prev.add(5, 'months').endOf('month').format('YYYY-MM-DD HH:mm:ss');
-        label = 'the previous 6 months';
-        break;
-      }
-      case 'monthly':
-      default: {
-        const prev = moment(currentDate).subtract(1, 'month');
-        prevStart = prev.startOf('month').format('YYYY-MM-DD HH:mm:ss');
-        prevEnd = prev.endOf('month').format('YYYY-MM-DD HH:mm:ss');
-        label = 'last month';
-        break;
-      }
-    }
-
-    return {
-      prevStartDate: prevStart,
-      prevEndDate: prevEnd,
-      comparisonLabel: label,
-    };
-  }, [filterPeriod, currentDate]);
-
   const { data: transactions = [], isLoading, error, refetch } = useTransactions(
     user?.id || '',
     { startDate, endDate }
-  );
-
-  // Previous period transactions for Total comparison
-  const { data: previousTransactions = [] } = useTransactions(
-    user?.id || '',
-    { startDate: prevStartDate, endDate: prevEndDate }
   );
 
   const handleEditTransaction = (transaction: TransactionWithCategory) => {
@@ -362,44 +296,6 @@ export function TransactionsListScreen() {
       balance,
     };
   }, [transactions]);
-
-  // Process transactions for TotalOverviewChart
-  const processTransactionData = (txs: TransactionWithCategory[]) => {
-    const expenseTransactions = txs.filter((tx) => tx.type === 'expense');
-    const incomeTransactions = txs.filter((tx) => tx.type === 'income');
-
-    const totalExpense = expenseTransactions.reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
-    const totalIncome = incomeTransactions.reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
-    const balance = totalIncome - totalExpense;
-
-    return {
-      totalExpense,
-      totalIncome,
-      balance,
-    };
-  };
-
-  const processed = useMemo(() => {
-    if (transactions.length === 0) {
-      return {
-        totalExpense: 0,
-        totalIncome: 0,
-        balance: 0,
-      };
-    }
-    return processTransactionData(transactions);
-  }, [transactions]);
-
-  const previousProcessed = useMemo(() => {
-    if (previousTransactions.length === 0) {
-      return {
-        totalExpense: 0,
-        totalIncome: 0,
-        balance: 0,
-      };
-    }
-    return processTransactionData(previousTransactions);
-  }, [previousTransactions]);
 
   const getPeriodDisplayName = (period: FilterPeriod) => {
     switch (period) {
