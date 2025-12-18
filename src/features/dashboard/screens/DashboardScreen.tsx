@@ -14,6 +14,7 @@ import { DateNavigator } from '../components/DateNavigator';
 import { FilterMenu, FilterPeriod } from '../components/FilterMenu';
 import { SummaryOverview } from '../components/SummaryOverview';
 import { ExpenseOverviewChart } from '../components/ExpenseOverviewChart';
+import { TotalOverviewChart } from '../components/TotalOverviewChart';
 
 
 // Hooks
@@ -135,7 +136,7 @@ export default function DashboardScreen() {
   const navigation = useNavigation<any>(); // Using any as a temporary measure
   const { user, authReady } = useAuth();
   const { filterPeriod, currentDate, updateFilter } = useFilter();
-  const [viewMode, setViewMode] = useState<'expense' | 'income'>('expense');
+  const [viewMode, setViewMode] = useState<'expense' | 'income' | 'total'>('expense');
 
 
   const handleFilterChange = useCallback((period: FilterPeriod) => {
@@ -218,10 +219,75 @@ export default function DashboardScreen() {
     }
   }, [filterPeriod, currentDate]);
 
+  // Previous period range for comparison in Total view
+  const { prevStartDate, prevEndDate, comparisonLabel } = useMemo(() => {
+    let prevStart: string;
+    let prevEnd: string;
+    let label: string;
+
+    switch (filterPeriod) {
+      case 'daily': {
+        const prev = moment(currentDate).subtract(1, 'day');
+        prevStart = prev.startOf('day').format('YYYY-MM-DD HH:mm:ss');
+        prevEnd = prev.endOf('day').format('YYYY-MM-DD HH:mm:ss');
+        label = 'the previous day';
+        break;
+      }
+      case 'weekly': {
+        const prev = moment(currentDate).subtract(1, 'week');
+        prevStart = prev.startOf('week').format('YYYY-MM-DD HH:mm:ss');
+        prevEnd = prev.endOf('week').format('YYYY-MM-DD HH:mm:ss');
+        label = 'last week';
+        break;
+      }
+      case 'quarterly': {
+        const prev = moment(currentDate).subtract(1, 'quarter');
+        prevStart = prev.startOf('quarter').format('YYYY-MM-DD HH:mm:ss');
+        prevEnd = prev.endOf('quarter').format('YYYY-MM-DD HH:mm:ss');
+        label = 'last quarter';
+        break;
+      }
+      case 'yearly': {
+        const prev = moment(currentDate).subtract(1, 'year');
+        prevStart = prev.startOf('year').format('YYYY-MM-DD HH:mm:ss');
+        prevEnd = prev.endOf('year').format('YYYY-MM-DD HH:mm:ss');
+        label = 'last year';
+        break;
+      }
+      case 'half-yearly': {
+        const prev = moment(currentDate).subtract(6, 'months');
+        prevStart = prev.startOf('month').format('YYYY-MM-DD HH:mm:ss');
+        prevEnd = prev.add(5, 'months').endOf('month').format('YYYY-MM-DD HH:mm:ss');
+        label = 'the previous 6 months';
+        break;
+      }
+      case 'monthly':
+      default: {
+        const prev = moment(currentDate).subtract(1, 'month');
+        prevStart = prev.startOf('month').format('YYYY-MM-DD HH:mm:ss');
+        prevEnd = prev.endOf('month').format('YYYY-MM-DD HH:mm:ss');
+        label = 'last month';
+        break;
+      }
+    }
+
+    return {
+      prevStartDate: prevStart,
+      prevEndDate: prevEnd,
+      comparisonLabel: label,
+    };
+  }, [filterPeriod, currentDate]);
+
   // Use React Query hook for transactions - data is cached and only refetches when invalidated
   const { data: transactions = [], isLoading, isFetching } = useTransactions(
     user?.id || '',
     { startDate, endDate }
+  );
+
+  // Previous period transactions for Total comparison
+  const { data: previousTransactions = [] } = useTransactions(
+    user?.id || '',
+    { startDate: prevStartDate, endDate: prevEndDate }
   );
 
   // Process transactions data for the UI
@@ -288,6 +354,17 @@ export default function DashboardScreen() {
       totalIncome
     };
   }, [transactions]);
+
+  const previousProcessed = useMemo(() => {
+    if (previousTransactions.length === 0) {
+      return {
+        totalExpense: 0,
+        totalIncome: 0,
+        balance: 0,
+      };
+    }
+    return processTransactionData(previousTransactions);
+  }, [previousTransactions]);
 
   // const handleFilterChange = (period: FilterPeriod) => {
   //   setFilterPeriod(period);
@@ -398,6 +475,7 @@ export default function DashboardScreen() {
           balance={processed.balance}
           onExpensePress={() => setViewMode('expense')}
           onIncomePress={() => setViewMode('income')}
+          onTotalPress={() => setViewMode('total')}
           activeView={viewMode}
         />
       </View>
@@ -408,15 +486,29 @@ export default function DashboardScreen() {
         {/* Overview Section */}
         <View style={styles.sectionContainer}>
           <Text style={styles.sectionTitle}>
-            {viewMode === 'expense' ? 'Expense Overview' : 'Income Overview'}
+            {viewMode === 'expense'
+              ? 'Expense Overview'
+              : viewMode === 'income'
+              ? 'Income Overview'
+              : 'Total Overview'}
           </Text>
 
-          {(viewMode === 'expense' ? processed.chartData : processedIncome.chartData).length > 0 ? (
+          {viewMode === 'total' ? (
+            <TotalOverviewChart
+              currentExpense={processed.totalExpense}
+              currentIncome={processed.totalIncome}
+              currentSavings={processed.balance}
+              previousExpense={previousProcessed.totalExpense}
+              previousIncome={previousProcessed.totalIncome}
+              previousSavings={previousProcessed.balance}
+              comparisonLabel={comparisonLabel}
+            />
+          ) : (viewMode === 'expense' ? processed.chartData : processedIncome.chartData).length > 0 ? (
             <ExpenseOverviewChart
               chartData={viewMode === 'expense' ? processed.chartData : processedIncome.chartData}
               totalExpense={viewMode === 'expense' ? processed.totalExpense : processedIncome.totalIncome}
               breakdown={viewMode === 'expense' ? topCategories : processedIncome.breakdown}
-              transactions={viewMode === 'expense' 
+              transactions={viewMode === 'expense'
                 ? transactions.filter(tx => tx.type === 'expense')
                 : transactions.filter(tx => tx.type === 'income')
               }
