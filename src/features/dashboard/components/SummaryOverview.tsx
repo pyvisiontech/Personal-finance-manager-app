@@ -7,8 +7,8 @@ interface SummaryOverviewProps {
   balance: number;
   onExpensePress?: () => void;
   onIncomePress?: () => void;
-  activeView?: 'expense' | 'income';
-  showUnderline?: boolean;
+  onTotalPress?: () => void;
+  activeView?: 'expense' | 'income' | 'total';
 }
 
 export function SummaryOverview({
@@ -17,8 +17,8 @@ export function SummaryOverview({
   balance,
   onExpensePress,
   onIncomePress,
+  onTotalPress,
   activeView = 'expense',
-  showUnderline = true
 }: SummaryOverviewProps) {
   const displayExpense = Math.abs(totalExpense);
   const displayIncome = Math.abs(totalIncome);
@@ -27,39 +27,67 @@ export function SummaryOverview({
   return (
     <View style={styles.container}>
       <TouchableOpacity
-        style={[styles.column, activeView === 'expense' && styles.activeColumn]}
+        style={[
+          styles.button,
+          activeView === 'expense' ? styles.activeButton : styles.inactiveButton,
+        ]}
         onPress={onExpensePress}
-        activeOpacity={0.7}
+        activeOpacity={0.8}
       >
-        <View style={styles.labelContainer}>
-          <Text style={[styles.label, activeView === 'expense' && styles.activeLabel]}>Expense</Text>
-          {showUnderline && activeView === 'expense' && <View style={styles.underline} />}
+        <View style={styles.buttonContent}>
+          <Text style={[
+            styles.label,
+            activeView === 'expense' ? styles.activeLabel : styles.inactiveLabel
+          ]}>
+            Expense
+          </Text>
+          <Text style={[styles.amount, styles.expense]}>
+            -₹{displayExpense.toLocaleString('en-IN')}
+          </Text>
         </View>
-        <Text style={[styles.amount, styles.expense]}>
-          -₹{displayExpense.toLocaleString('en-IN')}
-        </Text>
       </TouchableOpacity>
 
       <TouchableOpacity
-        style={[styles.column, activeView === 'income' && styles.activeColumn]}
+        style={[
+          styles.button,
+          activeView === 'income' ? styles.activeButton : styles.inactiveButton,
+        ]}
         onPress={onIncomePress}
-        activeOpacity={0.7}
+        activeOpacity={0.8}
       >
-        <View style={styles.labelContainer}>
-          <Text style={[styles.label, activeView === 'income' && styles.activeLabel]}>Income</Text>
-          {showUnderline && activeView === 'income' && <View style={styles.underline} />}
+        <View style={styles.buttonContent}>
+          <Text style={[
+            styles.label,
+            activeView === 'income' ? styles.activeLabel : styles.inactiveLabel
+          ]}>
+            Income
+          </Text>
+          <Text style={[styles.amount, styles.income]}>
+            +₹{displayIncome.toLocaleString('en-IN')}
+          </Text>
         </View>
-        <Text style={[styles.amount, styles.income]}>
-          +₹{displayIncome.toLocaleString('en-IN')}
-        </Text>
       </TouchableOpacity>
 
-      <View style={styles.column}>
-        <Text style={styles.label}>Total</Text>
-        <Text style={[styles.amount, balance < 0 ? styles.expense : styles.income]}>
-          {balance < 0 ? '-' : '+'}₹{displayBalance.toLocaleString('en-IN')}
-        </Text>
-      </View>
+      <TouchableOpacity
+        style={[
+          styles.button,
+          activeView === 'total' ? styles.activeButton : styles.inactiveButton,
+        ]}
+        onPress={onTotalPress}
+        activeOpacity={0.8}
+      >
+        <View style={styles.buttonContent}>
+          <Text style={[
+            styles.label,
+            activeView === 'total' ? styles.activeLabel : styles.inactiveLabel
+          ]}>
+            Total
+          </Text>
+          <Text style={[styles.amount, balance < 0 ? styles.expense : styles.income]}>
+            {balance < 0 ? '-' : '+'}₹{displayBalance.toLocaleString('en-IN')}
+          </Text>
+        </View>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -68,39 +96,59 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingHorizontal: 24,
-    marginVertical: 16,
+    paddingHorizontal: 16,
+    marginVertical: 12,
+    gap: 6,
   } as ViewStyle,
-  column: {
+  button: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
     alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
   } as ViewStyle,
-  activeColumn: {
-    opacity: 1,
+  activeButton: {
+    backgroundColor: '#F3F4F6', // light gray background when active
+    borderColor: '#111827', // dark border when active
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 4,
   } as ViewStyle,
-  labelContainer: {
+  inactiveButton: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#E5E7EB', // light gray border when inactive
+  } as ViewStyle,
+  buttonContent: {
     alignItems: 'center',
-    marginBottom: 4,
+    justifyContent: 'center',
   } as ViewStyle,
   label: {
-    fontSize: 14,
-    color: '#6B7280', // gray-500
+    fontSize: 12,
+    marginBottom: 4,
+    fontWeight: '500',
   } as TextStyle,
   activeLabel: {
-    color: '#111827', // gray-900
+    color: '#111827', // dark text when active
     fontWeight: '600',
   } as TextStyle,
-  underline: {
-    position: 'absolute',
-    bottom: -4,
-    left: 0,
-    right: 0,
-    height: 2,
-    backgroundColor: '#111827', // gray-900
-    borderRadius: 1,
-  } as ViewStyle,
+  inactiveLabel: {
+    color: '#6B7280', // gray text when inactive
+  } as TextStyle,
   amount: {
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: '700',
+    marginTop: 0,
   } as TextStyle,
   expense: {
     color: '#F43F5E', // rose-500
