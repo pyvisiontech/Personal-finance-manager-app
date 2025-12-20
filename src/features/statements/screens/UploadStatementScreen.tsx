@@ -9,13 +9,15 @@ import {
   ActivityIndicator 
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Button } from '../../../components/Button';
 import { Card } from '../../../components/Card';
 import { useUploadStatement, usePickDocument } from '../hooks/useUploadStatement';
 import { useAuth } from '../../../context/AuthContext';
+import { RootStackParamList } from '../../../navigation/types';
 
 export function UploadStatementScreen() {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { user } = useAuth();
   const uploadStatement = useUploadStatement();
   const pickDocument = usePickDocument();
@@ -67,7 +69,21 @@ export function UploadStatementScreen() {
         fileName: selectedFile.name,
         fileType: selectedFile.type,
       });
-      Alert.alert('Success', 'Statement uploaded successfully!');
+      Alert.alert(
+        'Upload Successful! 📄',
+        'Your statement has been uploaded successfully. Please wait 10-15 minutes while we process and categorize your transactions. You can check the status in the Statements screen.',
+        [
+          {
+            text: 'View Statements',
+            onPress: () => navigation.navigate('StatementsList'),
+            style: 'default',
+          },
+          {
+            text: 'OK',
+            style: 'cancel',
+          },
+        ]
+      );
       setSelectedFile(null);
     } catch (error) {
       Alert.alert('Error', 'Failed to upload statement');

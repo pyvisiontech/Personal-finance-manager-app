@@ -307,7 +307,7 @@ export function SignUpScreen({ navigation }: any) {
             <Text style={styles.subtitle}>
               {step === 'email'
                 ? 'Sign up to get started with better money management.'
-                : 'Enter the 8-digit code sent to your email.'}
+                : 'Enter the 6-digit code sent to your email.'}
             </Text>
           </View>
 
@@ -360,10 +360,10 @@ export function SignUpScreen({ navigation }: any) {
                 <View style={styles.otpContainer}>
                   <Text style={styles.otpTitle}>Enter Verification Code</Text>
                   <Text style={styles.otpSubtitle}>
-                    We sent a 8-digit code to your email
+                    We sent a 6-digit code to your email
                   </Text>
                   <OtpInput
-                    length={8}
+                    length={6}
                     onComplete={handleOtpComplete}
                     error={otpError}
                   />

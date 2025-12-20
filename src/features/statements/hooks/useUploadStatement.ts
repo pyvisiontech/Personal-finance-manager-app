@@ -36,7 +36,6 @@ export function useUploadStatement() {
     file_url: string;
     source_type: string;
     client_id: string;
-    file_id: string;
     signed_url: string;
      accountant_id: null 
   }) => {
@@ -162,7 +161,6 @@ export function useUploadStatement() {
         file_url: publicUrl,
         source_type: 'bank_statement',
         client_id: userId,
-        file_id: storagePath,
         signed_url: signedUrl,
          accountant_id: null 
       }).catch((error) => {

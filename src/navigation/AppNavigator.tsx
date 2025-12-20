@@ -12,6 +12,7 @@ import { TransactionsTableScreen } from '../features/transactions/screens/Transa
 import ManualTransactionScreen from '../features/transactions/screens/ManualTransactionScreen';
 
 import { UploadStatementScreen } from '../features/statements/screens/UploadStatementScreen';
+import { StatementsListScreen } from '../features/statements/screens/StatementsListScreen';
 import { View, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { RouteProp } from '@react-navigation/native';
@@ -20,6 +21,7 @@ import { RootStackParamList } from './types';
 const RootStack = createNativeStackNavigator();
 const HomeStack = createNativeStackNavigator();
 const TransactionsStack = createNativeStackNavigator();
+const StatementsStack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
 function AuthNavigator() {
@@ -89,6 +91,29 @@ function TransactionsStackNavigator() {
   );
 }
 
+function StatementsStackNavigator() {
+  return (
+    <StatementsStack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: '#007a33' },
+        headerTintColor: '#fff',
+        headerTitleStyle: { fontWeight: '600' },
+      }}
+    >
+      <StatementsStack.Screen
+        name="StatementsList"
+        component={StatementsListScreen}
+        options={{ headerShown: false }}
+      />
+      <StatementsStack.Screen
+        name="UploadStatement"
+        component={UploadStatementScreen}
+        options={{ title: 'Upload Statement' }}
+      />
+    </StatementsStack.Navigator>
+  );
+}
+
 function MainTabs() {
   return (
     <Tab.Navigator
@@ -102,6 +127,9 @@ function MainTabs() {
           height: 68,
           paddingBottom: 10,
           paddingTop: 8,
+          marginBottom: 8,
+          borderTopLeftRadius: 0,
+          borderTopRightRadius: 0,
         },
         tabBarLabelStyle: { fontSize: 12, fontWeight: '600' },
       }}
@@ -123,6 +151,16 @@ function MainTabs() {
           tabBarLabel: 'Transactions',
           tabBarIcon: ({ color, size, focused }: { color: string; size: number; focused: boolean }) => (
             <Ionicons name={focused ? "list" : "list-outline"} color={color} size={size} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="StatementsTab"
+        component={StatementsStackNavigator}
+        options={{
+          tabBarLabel: 'Statements',
+          tabBarIcon: ({ color, size, focused }: { color: string; size: number; focused: boolean }) => (
+            <Ionicons name={focused ? "document-text" : "document-text-outline"} color={color} size={size} />
           ),
         }}
       />

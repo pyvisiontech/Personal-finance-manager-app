@@ -357,83 +357,84 @@ export function TransactionsListScreen() {
     );
   };
 
-  const renderSortBar = () => (
-    <View style={styles.sortBarFixed}>
-      <View style={styles.sortControlInline}>
-        <MaterialIcons
-          name="filter-list"
-          size={16}
-          color="#4b5563"
-          style={styles.sortIcon}
-        />
-        <Text style={styles.sortLabel}>Sort by:</Text>
-        <TouchableOpacity
-          style={styles.sortSelector}
-          onPress={() => setIsSortMenuVisible((prev) => !prev)}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.sortSelectorText}>
-            {sortMode === 'date' ? 'Date' : 'Amount'}
-          </Text>
+  const renderSortBar = () => {
+    if (!dateGroups || dateGroups.length === 0) return null;
+    return (
+      <View style={styles.sortBarFixed}>
+        <View style={styles.sortControlInline}>
           <MaterialIcons
-            name={isSortMenuVisible ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
+            name="filter-list"
             size={16}
             color="#4b5563"
+            style={styles.sortIcon}
           />
-        </TouchableOpacity>
-      </View>
-      {isSortMenuVisible && (
-        <View style={styles.sortMenuInline}>
+          <Text style={styles.sortLabel}>Sort by:</Text>
           <TouchableOpacity
-            style={styles.sortMenuItem}
-            onPress={() => {
-              setSortMode('date');
-              setIsSortMenuVisible(false);
-            }}
+            style={styles.sortSelector}
+            onPress={() => setIsSortMenuVisible((prev) => !prev)}
+            activeOpacity={0.8}
           >
-            <View style={styles.sortMenuItemLeft}>
-              {sortMode === 'date' && (
-                <MaterialIcons name="check" size={16} color="#007a33" />
-              )}
-              <Text
-                style={[
-                  styles.sortMenuItemText,
-                  sortMode === 'date' && styles.sortMenuItemTextActive,
-                ]}
-              >
-                Date
-              </Text>
-            </View>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.sortMenuItem}
-            onPress={() => {
-              setSortMode('amount');
-              setIsSortMenuVisible(false);
-            }}
-          >
-            <View style={styles.sortMenuItemLeft}>
-              {sortMode === 'amount' && (
-                <MaterialIcons name="check" size={16} color="#007a33" />
-              )}
-              <Text
-                style={[
-                  styles.sortMenuItemText,
-                  sortMode === 'amount' && styles.sortMenuItemTextActive,
-                ]}
-              >
-                Amount
-              </Text>
-            </View>
+            <Text style={styles.sortSelectorText}>
+              {sortMode === 'date' ? 'Date' : 'Amount'}
+            </Text>
+            <MaterialIcons
+              name={isSortMenuVisible ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
+              size={16}
+              color="#4b5563"
+            />
           </TouchableOpacity>
         </View>
-      )}
-    </View>
-  );
+        {isSortMenuVisible && (
+          <View style={styles.sortMenuDropdown}>
+            <TouchableOpacity
+              style={styles.sortMenuItem}
+              onPress={() => {
+                setSortMode('date');
+                setIsSortMenuVisible(false);
+              }}
+            >
+              <View style={styles.sortMenuItemLeft}>
+                {sortMode === 'date' && (
+                  <MaterialIcons name="check" size={16} color="#007a33" />
+                )}
+                <Text
+                  style={[
+                    styles.sortMenuItemText,
+                    sortMode === 'date' && styles.sortMenuItemTextActive,
+                  ]}
+                >
+                  Date
+                </Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.sortMenuItem}
+              onPress={() => {
+                setSortMode('amount');
+                setIsSortMenuVisible(false);
+              }}
+            >
+              <View style={styles.sortMenuItemLeft}>
+                {sortMode === 'amount' && (
+                  <MaterialIcons name="check" size={16} color="#007a33" />
+                )}
+                <Text
+                  style={[
+                    styles.sortMenuItemText,
+                    sortMode === 'amount' && styles.sortMenuItemTextActive,
+                  ]}
+                >
+                  Amount
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+    );
+  };
 
   const renderDateGroup = (group: DateGroup) => {
-    // Transactions are already sorted in descending order in dateGroups useMemo
-    // No need to sort again here
     return (
       <View key={group.date} style={styles.dateGroup}>
         <View style={styles.dateHeaderRow}>
@@ -612,7 +613,43 @@ const styles = StyleSheet.create({
   chartContainer: {
     paddingHorizontal: 8,
   },
+  sortBarFixed: {
+    backgroundColor: '#f4f1e3',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    alignItems: 'flex-end',
+    zIndex: 10,
+  },
+  sortControlInline: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  sortMenuDropdown: {
+    position: 'absolute',
+    top: 40,
+    right: 0,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 6,
+    paddingVertical: 4,
+    minWidth: 120,
+    zIndex: 20,
+  },
   dateGroup: {
+    marginTop: 16,
+    marginBottom: 24,
+  },
+  firstDateGroup: {
     marginBottom: 24,
   },
   dateHeaderRow: {
@@ -626,40 +663,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#374151',
-  },
-  sortBarFixed: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'flex-start',
-    backgroundColor: '#f4f1e3',
-    zIndex: 10,
-  },
-  sortControlInline: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  sortMenuInline: {
-    position: 'absolute',
-    top: 36,
-    right: 16,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
-    elevation: 6,
-    paddingVertical: 4,
-    minWidth: 120,
-    zIndex: 20,
   },
   transactionsList: {
     backgroundColor: '#fff',
