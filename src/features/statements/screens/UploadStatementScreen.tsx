@@ -27,28 +27,21 @@ export function UploadStatementScreen() {
     type: string 
   } | null>(null);
 
-  // Hide tab bar when this screen is focused
+  // Keep tab bar visible but ensure proper styling
   useLayoutEffect(() => {
+    // Ensure tab bar is visible with proper styling
     navigation.getParent()?.setOptions({
       tabBarStyle: {
-        height: 0,
-        overflow: 'hidden',
-        borderTopWidth: 0,
+        backgroundColor: '#f4f1e3',
+        borderTopColor: '#d8d2b8',
+        height: 68,
+        paddingBottom: 10,
+        paddingTop: 8,
+        marginBottom: 8,
+        borderTopLeftRadius: 0,
+        borderTopRightRadius: 0,
       },
     });
-
-    return () => {
-      // Show tab bar when leaving this screen
-      navigation.getParent()?.setOptions({
-        tabBarStyle: {
-          backgroundColor: '#f4f1e3',
-          borderTopColor: '#d8d2b8',
-          height: 68,
-          paddingBottom: 10,
-          paddingTop: 8,
-        },
-      });
-    };
   }, [navigation]);
 
   const handlePickFile = async () => {
@@ -145,7 +138,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 16,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#f4f1e3',
   },
   title: {
     fontSize: 24,

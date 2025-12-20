@@ -99,6 +99,42 @@ export function TransactionsListScreen() {
     { startDate, endDate }
   );
 
+  // Remove duplicate transactions based on key fields
+  const deduplicatedTransactions = useMemo(() => {
+    if (!transactions || transactions.length === 0) return [];
+    
+    // Create a map to track unique transactions
+    const seen = new Map<string, TransactionWithCategory>();
+    let duplicateCount = 0;
+    
+    transactions.forEach((transaction) => {
+      // Create a unique key based on: user_id, amount, occurred_at (date only), and raw_description
+      // This helps identify duplicates even if they have different IDs
+      const dateKey = moment(transaction.occurred_at).format('YYYY-MM-DD');
+      // Normalize description to handle slight variations (trim, lowercase for comparison)
+      const normalizedDescription = (transaction.raw_description || '').trim().toLowerCase();
+      const uniqueKey = `${transaction.user_id}_${transaction.amount}_${dateKey}_${normalizedDescription}`;
+      
+      // If we haven't seen this transaction before, or if this one has a more recent created_at
+      if (!seen.has(uniqueKey)) {
+        seen.set(uniqueKey, transaction);
+      } else {
+        // If duplicate found, keep the one with the most recent created_at
+        duplicateCount++;
+        const existing = seen.get(uniqueKey)!;
+        if (moment(transaction.created_at).isAfter(moment(existing.created_at))) {
+          seen.set(uniqueKey, transaction);
+        }
+      }
+    });
+    
+    if (duplicateCount > 0) {
+      console.log(`⚠️ Removed ${duplicateCount} duplicate transaction(s)`);
+    }
+    
+    return Array.from(seen.values());
+  }, [transactions]);
+
   const handleEditTransaction = (transaction: TransactionWithCategory) => {
     navigation.navigate('ManualTransaction', { transaction });
   };
@@ -155,18 +191,18 @@ export function TransactionsListScreen() {
     setRefreshing(false);
   };
 
-  // Filter transactions based on viewMode
+  // Filter transactions based on viewMode (using deduplicated transactions)
   const filteredTransactions = useMemo(() => {
-    if (!transactions) return [];
+    if (!deduplicatedTransactions) return [];
     
     if (viewMode === 'expense') {
-      return transactions.filter(tx => tx.type === 'expense');
+      return deduplicatedTransactions.filter(tx => tx.type === 'expense');
     } else if (viewMode === 'income') {
-      return transactions.filter(tx => tx.type === 'income');
+      return deduplicatedTransactions.filter(tx => tx.type === 'income');
     }
     // For 'total', return all transactions (but we'll show chart instead)
-    return transactions;
-  }, [transactions, viewMode]);
+    return deduplicatedTransactions;
+  }, [deduplicatedTransactions, viewMode]);
 
   // Group transactions by date
   const dateGroups = useMemo(() => {
@@ -273,9 +309,9 @@ export function TransactionsListScreen() {
     }
   }, [filterPeriod, currentDate]);
 
-  // Calculate summary totals from transactions
+  // Calculate summary totals from deduplicated transactions
   const summaryTotals = useMemo(() => {
-    if (!transactions || transactions.length === 0) {
+    if (!deduplicatedTransactions || deduplicatedTransactions.length === 0) {
       return {
         totalExpense: 0,
         totalIncome: 0,
@@ -283,8 +319,8 @@ export function TransactionsListScreen() {
       };
     }
 
-    const expenseTransactions = transactions.filter((tx) => tx.type === 'expense');
-    const incomeTransactions = transactions.filter((tx) => tx.type === 'income');
+    const expenseTransactions = deduplicatedTransactions.filter((tx) => tx.type === 'expense');
+    const incomeTransactions = deduplicatedTransactions.filter((tx) => tx.type === 'income');
 
     const totalExpense = expenseTransactions.reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
     const totalIncome = incomeTransactions.reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
@@ -295,7 +331,7 @@ export function TransactionsListScreen() {
       totalIncome,
       balance,
     };
-  }, [transactions]);
+  }, [deduplicatedTransactions]);
 
   const getPeriodDisplayName = (period: FilterPeriod) => {
     switch (period) {

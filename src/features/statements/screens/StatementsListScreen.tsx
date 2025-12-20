@@ -49,10 +49,10 @@ export function StatementsListScreen() {
       } else if (data) {
         // Invalidate and refetch all statements to update the UI
         await refetch();
-        
+
         const status = data.status as StatementStatus;
         const statusLabel = getStatusLabel(status);
-        
+
         if (status === 'completed') {
           Alert.alert('Status Updated', `Statement is now ${statusLabel}!`);
         } else if (status === 'failed') {
@@ -96,18 +96,18 @@ export function StatementsListScreen() {
     try {
       // Get signed URL for the file
       let signedUrl = statement.file_url;
-      
+
       // Try to create a signed URL from the file_url path
       try {
         // Extract storage path from file_url
         const urlParts = statement.file_url.split('/');
         const storagePath = urlParts.slice(urlParts.indexOf('statements') + 1).join('/');
-        
+
         if (storagePath) {
           const { data: signedData, error: signedError } = await supabase.storage
             .from('statements')
             .createSignedUrl(storagePath, 60 * 60);
-          
+
           if (!signedError && signedData?.signedUrl) {
             signedUrl = signedData.signedUrl;
           }
