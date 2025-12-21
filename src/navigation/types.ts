@@ -12,6 +12,7 @@ export type RootStackParamList = {
   TransactionsTable: undefined;
   UploadStatement: undefined;
   ManualTransaction: { transaction?: TransactionWithCategory } | undefined;
+  StatementsList: undefined;
 };
 
 // Create a type for navigation props

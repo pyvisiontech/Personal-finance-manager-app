@@ -9,13 +9,15 @@ import {
   ActivityIndicator 
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Button } from '../../../components/Button';
 import { Card } from '../../../components/Card';
 import { useUploadStatement, usePickDocument } from '../hooks/useUploadStatement';
 import { useAuth } from '../../../context/AuthContext';
+import { RootStackParamList } from '../../../navigation/types';
 
 export function UploadStatementScreen() {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { user } = useAuth();
   const uploadStatement = useUploadStatement();
   const pickDocument = usePickDocument();
@@ -25,28 +27,21 @@ export function UploadStatementScreen() {
     type: string 
   } | null>(null);
 
-  // Hide tab bar when this screen is focused
+  // Keep tab bar visible but ensure proper styling
   useLayoutEffect(() => {
+    // Ensure tab bar is visible with proper styling
     navigation.getParent()?.setOptions({
       tabBarStyle: {
-        height: 0,
-        overflow: 'hidden',
-        borderTopWidth: 0,
+        backgroundColor: '#f4f1e3',
+        borderTopColor: '#d8d2b8',
+        height: 68,
+        paddingBottom: 10,
+        paddingTop: 8,
+        marginBottom: 8,
+        borderTopLeftRadius: 0,
+        borderTopRightRadius: 0,
       },
     });
-
-    return () => {
-      // Show tab bar when leaving this screen
-      navigation.getParent()?.setOptions({
-        tabBarStyle: {
-          backgroundColor: '#f4f1e3',
-          borderTopColor: '#d8d2b8',
-          height: 68,
-          paddingBottom: 10,
-          paddingTop: 8,
-        },
-      });
-    };
   }, [navigation]);
 
   const handlePickFile = async () => {
@@ -67,7 +62,21 @@ export function UploadStatementScreen() {
         fileName: selectedFile.name,
         fileType: selectedFile.type,
       });
-      Alert.alert('Success', 'Statement uploaded successfully!');
+      Alert.alert(
+        'Upload Successful! 📄',
+        'Your statement has been uploaded successfully. Please wait 10-15 minutes while we process and categorize your transactions. You can check the status in the Statements screen.',
+        [
+          {
+            text: 'View Statements',
+            onPress: () => navigation.navigate('StatementsList'),
+            style: 'default',
+          },
+          {
+            text: 'OK',
+            style: 'cancel',
+          },
+        ]
+      );
       setSelectedFile(null);
     } catch (error) {
       Alert.alert('Error', 'Failed to upload statement');
@@ -129,7 +138,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 16,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#f4f1e3',
   },
   title: {
     fontSize: 24,
