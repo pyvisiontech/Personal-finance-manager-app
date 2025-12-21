@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, RefreshControl, StyleSheet, StatusBar, Platform, ActivityIndicator, Alert } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -26,6 +26,34 @@ export function StatementsListScreen() {
       refetch();
     }, [refetch])
   );
+
+  // Automatically process statements with "uploaded" status when they appear
+  const processedStatementsRef = useRef<Set<string>>(new Set());
+  
+  useEffect(() => {
+    if (!user?.id || !statements || statements.length === 0) return;
+
+    const uploadedStatements = statements.filter(
+      (s) => s.status === 'uploaded' && !processedStatementsRef.current.has(s.id)
+    );
+
+    uploadedStatements.forEach((statement) => {
+      // Mark as being processed to avoid duplicate calls
+      processedStatementsRef.current.add(statement.id);
+      
+      // Automatically trigger processing for uploaded statements (silent mode)
+      reprocessStatement(statement, true)
+        .then(() => {
+          // Refetch to update status
+          refetch();
+        })
+        .catch((error) => {
+          console.error('Auto-processing failed:', error);
+          // Remove from processed set so it can be retried
+          processedStatementsRef.current.delete(statement.id);
+        });
+    });
+  }, [statements, user?.id, refetch]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -86,7 +114,7 @@ export function StatementsListScreen() {
   };
 
   // Reprocess old statements that are stuck in "uploaded" status
-  const reprocessStatement = async (statement: StatementImport) => {
+  const reprocessStatement = async (statement: StatementImport, silent: boolean = false) => {
     if (!user?.id) {
       Alert.alert('Error', 'User not found');
       return;
@@ -138,11 +166,13 @@ export function StatementsListScreen() {
         throw new Error(`Backend processing failed: ${errorText || 'Unknown error'}`);
       }
 
-      Alert.alert(
-        'Processing Started',
-        'Your statement is being processed. This may take a few minutes. The status will update automatically.',
-        [{ text: 'OK' }]
-      );
+      if (!silent) {
+        Alert.alert(
+          'Processing Started',
+          'Your statement is being processed. This may take a few minutes. The status will update automatically.',
+          [{ text: 'OK' }]
+        );
+      }
 
       // Refetch to update status
       await refetch();
@@ -226,7 +256,8 @@ export function StatementsListScreen() {
     const isChecking = checkingStatus === statement.id;
     const isReprocessing = reprocessing === statement.id;
     const canCheckStatus = statement.status === 'uploaded' || statement.status === 'processing';
-    const canReprocess = statement.status === 'uploaded' || statement.status === 'failed';
+    // Only show Process button for failed statements that need to be reprocessed
+    const canReprocess = statement.status === 'failed';
 
     return (
       <View key={statement.id} style={[styles.statementItem, isLast && styles.lastStatementItem]}>
@@ -240,11 +271,6 @@ export function StatementsListScreen() {
             </Text>
             <View style={styles.metaRow}>
               <Text style={styles.dateText}>{formatDate(statement.created_at)}</Text>
-              {statement.source_type === 'bank_statement' && (
-                <View style={styles.sourceBadge}>
-                  <Text style={styles.sourceBadgeText}>Bank Statement</Text>
-                </View>
-              )}
             </View>
             {statement.processed_at && (
               <Text style={styles.processedText}>
@@ -279,7 +305,7 @@ export function StatementsListScreen() {
                 ) : (
                   <>
                     <MaterialIcons name="play-arrow" size={18} color="#007a33" />
-                    <Text style={styles.reprocessButtonText}>Process</Text>
+                    <Text style={styles.reprocessButtonText}>Retry</Text>
                   </>
                 )}
               </TouchableOpacity>

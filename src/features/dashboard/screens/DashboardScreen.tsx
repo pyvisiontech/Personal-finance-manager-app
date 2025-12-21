@@ -290,10 +290,70 @@ export default function DashboardScreen() {
     { startDate: prevStartDate, endDate: prevEndDate }
   );
 
-  // Process transactions data for the UI
+  // Remove duplicate transactions based on key fields (same logic as TransactionsListScreen)
+  const deduplicatedTransactions = useMemo(() => {
+    if (!transactions || transactions.length === 0) return [];
+    
+    // Create a map to track unique transactions
+    const seen = new Map<string, TransactionWithCategory>();
+    let duplicateCount = 0;
+    
+    transactions.forEach((transaction) => {
+      // Create a unique key based on: user_id, amount, occurred_at (date only), and raw_description
+      // This helps identify duplicates even if they have different IDs
+      const dateKey = moment(transaction.occurred_at).format('YYYY-MM-DD');
+      // Normalize description to handle slight variations (trim, lowercase for comparison)
+      const normalizedDescription = (transaction.raw_description || '').trim().toLowerCase();
+      const uniqueKey = `${transaction.user_id}_${transaction.amount}_${dateKey}_${normalizedDescription}`;
+      
+      // If we haven't seen this transaction before, or if this one has a more recent created_at
+      if (!seen.has(uniqueKey)) {
+        seen.set(uniqueKey, transaction);
+      } else {
+        // If duplicate found, keep the one with the most recent created_at
+        duplicateCount++;
+        const existing = seen.get(uniqueKey)!;
+        if (moment(transaction.created_at).isAfter(moment(existing.created_at))) {
+          seen.set(uniqueKey, transaction);
+        }
+      }
+    });
+    
+    if (duplicateCount > 0) {
+      console.log(`⚠️ Dashboard: Removed ${duplicateCount} duplicate transaction(s)`);
+    }
+    
+    return Array.from(seen.values());
+  }, [transactions]);
+
+  // Remove duplicates from previous period transactions as well
+  const deduplicatedPreviousTransactions = useMemo(() => {
+    if (!previousTransactions || previousTransactions.length === 0) return [];
+    
+    const seen = new Map<string, TransactionWithCategory>();
+    
+    previousTransactions.forEach((transaction) => {
+      const dateKey = moment(transaction.occurred_at).format('YYYY-MM-DD');
+      const normalizedDescription = (transaction.raw_description || '').trim().toLowerCase();
+      const uniqueKey = `${transaction.user_id}_${transaction.amount}_${dateKey}_${normalizedDescription}`;
+      
+      if (!seen.has(uniqueKey)) {
+        seen.set(uniqueKey, transaction);
+      } else {
+        const existing = seen.get(uniqueKey)!;
+        if (moment(transaction.created_at).isAfter(moment(existing.created_at))) {
+          seen.set(uniqueKey, transaction);
+        }
+      }
+    });
+    
+    return Array.from(seen.values());
+  }, [previousTransactions]);
+
+  // Process transactions data for the UI (using deduplicated transactions)
   const processed = useMemo(() => {
-    console.log('Processing transactions:', transactions.length);
-    if (transactions.length === 0) {
+    console.log('Processing transactions:', deduplicatedTransactions.length);
+    if (deduplicatedTransactions.length === 0) {
       return {
         totalExpense: 0,
         totalIncome: 0,
@@ -302,12 +362,12 @@ export default function DashboardScreen() {
         breakdown: []
       };
     }
-    return processTransactionData(transactions);
-  }, [transactions]);
+    return processTransactionData(deduplicatedTransactions);
+  }, [deduplicatedTransactions]);
 
   const processedIncome = useMemo(() => {
-    // Filter income transactions
-    const incomeTransactions = transactions.filter((tx) => tx.type === 'income');
+    // Filter income transactions (using deduplicated transactions)
+    const incomeTransactions = deduplicatedTransactions.filter((tx) => tx.type === 'income');
 
     // Group income by category
     const categoryMap: CategoryMap = {};
@@ -353,18 +413,18 @@ export default function DashboardScreen() {
       breakdown,
       totalIncome
     };
-  }, [transactions]);
+  }, [deduplicatedTransactions]);
 
   const previousProcessed = useMemo(() => {
-    if (previousTransactions.length === 0) {
+    if (deduplicatedPreviousTransactions.length === 0) {
       return {
         totalExpense: 0,
         totalIncome: 0,
         balance: 0,
       };
     }
-    return processTransactionData(previousTransactions);
-  }, [previousTransactions]);
+    return processTransactionData(deduplicatedPreviousTransactions);
+  }, [deduplicatedPreviousTransactions]);
 
   // const handleFilterChange = (period: FilterPeriod) => {
   //   setFilterPeriod(period);
@@ -433,7 +493,8 @@ export default function DashboardScreen() {
 
   // Show full-screen loading only on initial load when there's no cached data
   // If data exists but is refetching, show the cached data (no loading screen)
-  if (!authReady || (isLoading && transactions.length === 0)) {
+  // Don't block on authReady if we have a user - allow transactions to load
+  if ((!user || !authReady) && isLoading && deduplicatedTransactions.length === 0) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#4F46E5" />
@@ -509,8 +570,8 @@ export default function DashboardScreen() {
               totalExpense={viewMode === 'expense' ? processed.totalExpense : processedIncome.totalIncome}
               breakdown={viewMode === 'expense' ? topCategories : processedIncome.breakdown}
               transactions={viewMode === 'expense'
-                ? transactions.filter(tx => tx.type === 'expense')
-                : transactions.filter(tx => tx.type === 'income')
+                ? deduplicatedTransactions.filter(tx => tx.type === 'expense')
+                : deduplicatedTransactions.filter(tx => tx.type === 'income')
               }
             />
           ) : (

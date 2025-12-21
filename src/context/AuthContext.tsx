@@ -92,8 +92,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        await fetchClientProfile(session.user.id);
+        // Set authReady immediately when we have a session, don't wait for profile fetch
         setAuthReady(true);
+        // Fetch profile in background (non-blocking)
+        fetchClientProfile(session.user.id).catch((error) => {
+          console.error('Error fetching client profile on startup:', error);
+          // Don't block auth if profile fetch fails
+        });
       } else {
         setClientProfile(null);
         setNeedsProfileCompletion(false);
@@ -109,6 +114,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('Auth state changed:', event, 'Has session:', !!session, 'User:', session?.user?.email);
       setSession(session);
       setUser(session?.user ?? null);
+      // Set authReady immediately when we have a session - don't wait for profile fetch
       setAuthReady(!!session?.user);
       
       // Log auth events for debugging
@@ -118,29 +124,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log('User signed out');
       }
 
-      // Create client if it doesn't exist (for new Google signups)
+      // Create client if it doesn't exist (for new Google signups) - do this in background
       if (session?.user) {
-        const { data: client } = await supabase
-          .from('clients')
-          .select('id')
-          .eq('id', session.user.id)
-          .maybeSingle();
+        // Fetch profile in background (non-blocking)
+        (async () => {
+          try {
+            const { data: client } = await supabase
+              .from('clients')
+              .select('id')
+              .eq('id', session.user.id)
+              .maybeSingle();
 
-        if (!client) {
-          const fullName = session.user.user_metadata?.full_name || session.user.user_metadata?.name || '';
-          const nameParts = fullName.split(' ');
-          await supabase.from('clients').insert({
-            id: session.user.id,
-            email: session.user.email,
-            first_name: nameParts[0] || '',
-            last_name: nameParts.slice(1).join(' ') || '',
-            phone_number: session.user.user_metadata?.phone_number || '',
-            currency: 'INR',
-          });
-          await fetchClientProfile(session.user.id);
-        } else {
-          await fetchClientProfile(session.user.id);
-        }
+            if (!client) {
+              const fullName = session.user.user_metadata?.full_name || session.user.user_metadata?.name || '';
+              const nameParts = fullName.split(' ');
+              await supabase.from('clients').insert({
+                id: session.user.id,
+                email: session.user.email,
+                first_name: nameParts[0] || '',
+                last_name: nameParts.slice(1).join(' ') || '',
+                phone_number: session.user.user_metadata?.phone_number || '',
+                currency: 'INR',
+              });
+            }
+            // Fetch profile after ensuring client exists
+            await fetchClientProfile(session.user.id);
+          } catch (error: any) {
+            console.error('Error handling client profile on auth state change:', error);
+            // Don't block auth if profile operations fail
+          }
+        })();
       } else {
         setClientProfile(null);
         setNeedsProfileCompletion(false);

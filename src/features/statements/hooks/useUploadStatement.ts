@@ -153,8 +153,7 @@ export function useUploadStatement() {
 
       if (dbError) throw dbError;
 
-      // Notify backend (non-blocking - similar to Next.js approach)
-      // The upload succeeds even if backend notification fails
+      // Notify backend and update status to 'processing' if successful
       notifyBackend({
         import_id: importRecord.id,
         user_id: userId,
@@ -163,10 +162,19 @@ export function useUploadStatement() {
         client_id: userId,
         signed_url: signedUrl,
          accountant_id: null 
-      }).catch((error) => {
-        // Log error but don't fail the upload
-        console.error('Backend notification failed (non-blocking):', error);
-      });
+      })
+        .then(async () => {
+          // Update status to 'processing' after successfully notifying backend
+          await supabase
+            .from('statement_imports')
+            .update({ status: 'processing' })
+            .eq('id', importRecord.id);
+        })
+        .catch((error) => {
+          // Log error but don't fail the upload
+          console.error('Backend notification failed (non-blocking):', error);
+          // Status remains 'uploaded' if backend notification fails
+        });
 
       // Return immediately - don't wait for backend notification
       return importRecord;

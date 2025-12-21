@@ -204,9 +204,14 @@ export function TransactionsListScreen() {
     return deduplicatedTransactions;
   }, [deduplicatedTransactions, viewMode]);
 
-  // Group transactions by date
+  // Group transactions by date (only when sorting by date)
   const dateGroups = useMemo(() => {
     if (!filteredTransactions || filteredTransactions.length === 0) return [];
+    
+    // When sorting by amount, don't group by date - return empty array
+    if (sortMode === 'amount') {
+      return [];
+    }
 
     const groups = new Map<string, DateGroup>();
 
@@ -228,22 +233,12 @@ export function TransactionsListScreen() {
       group.totalAmount += Number(transaction.amount);
     });
 
-    // Sort transactions within each group and groups themselves based on sortMode
+    // Sort transactions within each group by time (ascending - chronological order, oldest first)
     const processedGroups = Array.from(groups.values())
       .map(group => {
-        let sortedTransactions = [...group.transactions];
-        
-        if (sortMode === 'date') {
-          // Sort by time (ascending - chronological order, oldest first)
-          sortedTransactions.sort((a, b) => 
-            moment(a.occurred_at).valueOf() - moment(b.occurred_at).valueOf()
-          );
-        } else {
-          // Sort by amount (descending - highest amount first)
-          sortedTransactions.sort((a, b) =>
-            Math.abs(Number(b.amount)) - Math.abs(Number(a.amount))
-          );
-        }
+        const sortedTransactions = [...group.transactions].sort((a, b) => 
+          moment(a.occurred_at).valueOf() - moment(b.occurred_at).valueOf()
+        );
         
         return {
           ...group,
@@ -251,20 +246,22 @@ export function TransactionsListScreen() {
         };
       });
     
-    // Sort date groups based on sortMode
-    if (sortMode === 'date') {
-      // Sort groups by date (descending - most recent first)
-      return processedGroups.sort((a, b) => 
-        moment(b.date).valueOf() - moment(a.date).valueOf()
-      );
-    } else {
-      // Sort groups by highest transaction amount in each group (descending)
-      return processedGroups.sort((a, b) => {
-        const maxAmountA = Math.max(...a.transactions.map(tx => Math.abs(Number(tx.amount))));
-        const maxAmountB = Math.max(...b.transactions.map(tx => Math.abs(Number(tx.amount))));
-        return maxAmountB - maxAmountA;
-      });
+    // Sort date groups by date (descending - most recent first)
+    return processedGroups.sort((a, b) => 
+      moment(b.date).valueOf() - moment(a.date).valueOf()
+    );
+  }, [filteredTransactions, sortMode]);
+
+  // Sort all transactions by amount when sortMode is 'amount' (no date grouping)
+  const sortedTransactionsByAmount = useMemo(() => {
+    if (sortMode !== 'amount' || !filteredTransactions || filteredTransactions.length === 0) {
+      return [];
     }
+    
+    // Sort all transactions by amount in descending order (highest first)
+    return [...filteredTransactions].sort((a, b) =>
+      Math.abs(Number(b.amount)) - Math.abs(Number(a.amount))
+    );
   }, [filteredTransactions, sortMode]);
 
   const formatAmount = (amount: number, type: string) => {
@@ -345,7 +342,7 @@ export function TransactionsListScreen() {
     }
   };
 
-  const renderTransaction = (transaction: TransactionWithCategory, isLast: boolean = false) => {
+  const renderTransaction = (transaction: TransactionWithCategory, isLast: boolean = false, showDate: boolean = false) => {
     const amount = formatAmount(Number(transaction.amount), transaction.type);
     const categoryName = getCategoryName(transaction);
     const categoryIcon = getCategoryIcon(transaction);
@@ -373,6 +370,11 @@ export function TransactionsListScreen() {
                 {description}
               </Text>
             </View>
+            {showDate && (
+              <Text style={styles.transactionDate}>
+                {moment(transaction.occurred_at).format('MMM DD, YYYY')}
+              </Text>
+            )}
           </View>
         </View>
         <View style={styles.transactionRight}>
@@ -394,9 +396,13 @@ export function TransactionsListScreen() {
   };
 
   const renderSortBar = () => {
-    if (!dateGroups || dateGroups.length === 0) return null;
+    // Show sort bar if there are transactions, regardless of sort mode
+    if (!filteredTransactions || filteredTransactions.length === 0) return null;
     return (
-      <View style={styles.sortBarFixed}>
+      <View style={[
+        styles.sortBarFixed,
+        isSortMenuVisible && styles.sortBarFixedExpanded
+      ]}>
         <View style={styles.sortControlInline}>
           <MaterialIcons
             name="filter-list"
@@ -478,7 +484,23 @@ export function TransactionsListScreen() {
         </View>
         <View style={styles.transactionsList}>
           {group.transactions.map((transaction, index) =>
-            renderTransaction(transaction, index === group.transactions.length - 1)
+            renderTransaction(transaction, index === group.transactions.length - 1, false)
+          )}
+        </View>
+      </View>
+    );
+  };
+
+  const renderFlatTransactionList = () => {
+    if (!sortedTransactionsByAmount || sortedTransactionsByAmount.length === 0) {
+      return null;
+    }
+
+    return (
+      <View style={styles.dateGroup}>
+        <View style={styles.transactionsList}>
+          {sortedTransactionsByAmount.map((transaction, index) =>
+            renderTransaction(transaction, index === sortedTransactionsByAmount.length - 1, true)
           )}
         </View>
       </View>
@@ -587,6 +609,7 @@ export function TransactionsListScreen() {
         contentContainerStyle={[
           styles.scrollContent,
           (!filteredTransactions || filteredTransactions.length === 0) && styles.scrollContentEmpty,
+          isSortMenuVisible && styles.scrollContentWithMenu,
         ]}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -594,6 +617,8 @@ export function TransactionsListScreen() {
       >
         {!filteredTransactions || filteredTransactions.length === 0 ? (
           renderEmptyState()
+        ) : sortMode === 'amount' ? (
+          renderFlatTransactionList()
         ) : (
           dateGroups.map((group) => renderDateGroup(group))
         )}
@@ -645,6 +670,10 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
+    paddingTop: 8, // Reduce top padding to minimize gap between sort filter and transactions
+  },
+  scrollContentWithMenu: {
+    paddingTop: 60, // Add space when dropdown menu is visible to prevent overlap
   },
   chartContainer: {
     paddingHorizontal: 8,
@@ -652,9 +681,13 @@ const styles = StyleSheet.create({
   sortBarFixed: {
     backgroundColor: '#f4f1e3',
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingTop: 4,
+    paddingBottom: 4, // Add small bottom padding for better spacing
     alignItems: 'flex-end',
     zIndex: 10,
+  },
+  sortBarFixedExpanded: {
+    paddingBottom: 8,
   },
   sortControlInline: {
     flexDirection: 'row',
@@ -682,7 +715,7 @@ const styles = StyleSheet.create({
     zIndex: 20,
   },
   dateGroup: {
-    marginTop: 16,
+    marginTop: 8, // Reduce top margin to minimize gap
     marginBottom: 24,
   },
   firstDateGroup: {
