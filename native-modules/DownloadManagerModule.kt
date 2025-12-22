@@ -66,6 +66,10 @@ class DownloadManagerModule(reactContext: ReactApplicationContext) :
                 }
             }
         }
+
+        override fun onNewIntent(intent: Intent) {
+            // Not needed for file picker functionality
+        }
     }
 
     init {
