@@ -41,7 +41,7 @@ const withDownloadManager = (config) => {
         // Copy files if they exist in source location
         if (fs.existsSync(sourceModulePath)) {
           fs.copyFileSync(sourceModulePath, destModulePath);
-          console.log('✅ Copied DownloadManagerModule.kt');
+          console.log('✅ Copied DownloadManagerModule.kt to:', destModulePath);
         } else {
           console.error('❌ DownloadManagerModule.kt not found at:', sourceModulePath);
           throw new Error(`DownloadManagerModule.kt not found at ${sourceModulePath}`);
@@ -159,12 +159,28 @@ const withDownloadManager = (config) => {
       
       if (modified) {
         fs.writeFileSync(mainApplicationPath, contents);
-        console.log('✅ Updated MainApplication.kt');
+        console.log('✅ Updated MainApplication.kt with DownloadManagerPackage');
+        
+        // Verify the update
+        const verifyContents = fs.readFileSync(mainApplicationPath, 'utf-8');
+        if (verifyContents.includes('DownloadManagerPackage')) {
+          console.log('✅ Verified: DownloadManagerPackage is in MainApplication.kt');
+        } else {
+          console.error('❌ WARNING: DownloadManagerPackage not found in MainApplication.kt after update!');
+        }
       } else {
         console.log('ℹ️ MainApplication.kt already has DownloadManagerPackage');
+        
+        // Verify it's actually there
+        if (contents.includes('DownloadManagerPackage')) {
+          console.log('✅ Verified: DownloadManagerPackage is already in MainApplication.kt');
+        } else {
+          console.error('❌ WARNING: DownloadManagerPackage not found but marked as already present!');
+        }
       }
     } catch (error) {
       console.error('❌ Error updating MainApplication.kt:', error);
+      console.error('❌ Stack trace:', error.stack);
       // Don't throw - let the build continue, the files are copied at least
     }
     
