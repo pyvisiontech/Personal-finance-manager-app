@@ -254,7 +254,10 @@ const ManualTransactionScreen = () => {
 
       // Set the date from the existing transaction
       if (existingTransaction.occurred_at) {
-        setDate(new Date(existingTransaction.occurred_at));
+        // Parse the date and set to start of day in local timezone
+        const transactionDate = moment(existingTransaction.occurred_at).toDate();
+        transactionDate.setHours(0, 0, 0, 0);
+        setDate(transactionDate);
       }
 
       const category =
@@ -334,6 +337,14 @@ const ManualTransactionScreen = () => {
       const accountId = accounts?.[0]?.id || null;
 
 
+      // Set date to start of day in local timezone to avoid timezone issues
+      const selectedDate = new Date(date);
+      selectedDate.setHours(0, 0, 0, 0); // Set to start of day in local timezone
+      
+      // Format as date string for database storage using local timezone
+      // Use moment in local mode to ensure the date stays in local timezone
+      const occurredAt = moment(selectedDate).local().format('YYYY-MM-DD HH:mm:ss');
+
       // Always use the selected date from the date picker
       const payload = {
         account_id: accountId,
@@ -346,22 +357,55 @@ const ManualTransactionScreen = () => {
         merchant: existingTransaction?.merchant || null,
         status: existingTransaction?.status || 'final',
         category_user_id: selectedCategory.id,
-        occurred_at: date.toISOString(), // Use the selected date from date picker
+        occurred_at: occurredAt, // Use formatted date string
       };
 
       if (isEditing && existingTransaction) {
-        const { error: updateError } = await supabase
+        // When editing, ensure category_ai_id is cleared since user is setting category_user_id
+        // Update ALL fields in a single atomic operation
+        const updatePayload = {
+          ...payload,
+          category_ai_id: null, // Always clear AI category when user edits
+        };
+        
+        console.log('Updating transaction:', {
+          id: existingTransaction.id,
+          oldAmount: existingTransaction.amount,
+          newAmount: updatePayload.amount,
+          oldCategory: existingTransaction.category_user_id || existingTransaction.category_ai_id,
+          newCategory: updatePayload.category_user_id,
+        });
+        
+        const { data: updatedData, error: updateError } = await supabase
           .from('transactions')
-          .update(payload)
-          .eq('id', existingTransaction.id);
+          .update(updatePayload)
+          .eq('id', existingTransaction.id)
+          .select()
+          .single();
 
-        if (updateError) throw updateError;
+        if (updateError) {
+          console.error('Update error:', updateError);
+          throw updateError;
+        }
+        
+        if (!updatedData) {
+          throw new Error('Transaction update returned no data');
+        }
+        
+        console.log('Transaction updated successfully:', updatedData.id);
       } else {
         const { error: insertError } = await supabase.from('transactions').insert([payload]);
         if (insertError) throw insertError;
       }
 
-      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      // Invalidate and refetch all transaction queries to ensure fresh data
+      // Wait for the refetch to complete to ensure the UI shows the updated transaction
+      await queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      await queryClient.refetchQueries({ queryKey: ['transactions'] });
+      
+      // Small delay to ensure the database update is fully propagated
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       navigation.goBack();
     } catch (error) {
       console.error('Error saving transaction:', error);
@@ -486,15 +530,10 @@ const ManualTransactionScreen = () => {
               onChange={(event, selectedDate) => {
                 setShowDatePicker(false);
                 if (selectedDate) {
-                  // Preserve the current time-of-day when changing the date to avoid defaulting to midnight
-                  const withExistingTime = new Date(selectedDate);
-                  withExistingTime.setHours(
-                    date.getHours(),
-                    date.getMinutes(),
-                    date.getSeconds(),
-                    date.getMilliseconds()
-                  );
-                  setDate(withExistingTime);
+                  // Set to start of day to avoid timezone issues
+                  const newDate = new Date(selectedDate);
+                  newDate.setHours(0, 0, 0, 0);
+                  setDate(newDate);
                 }
               }}
               maximumDate={new Date()}

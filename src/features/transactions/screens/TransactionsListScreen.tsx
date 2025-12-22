@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useLayoutEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, RefreshControl, StyleSheet } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -11,6 +11,8 @@ import { TransactionWithCategory } from '../../../lib/types';
 import { FilterMenu, FilterPeriod } from '../../dashboard/components/FilterMenu';
 import { DateNavigator } from '../../dashboard/components/DateNavigator';
 import { SummaryOverview } from '../../dashboard/components/SummaryOverview';
+import { NotificationIcon } from '../../dashboard/components/NotificationIcon';
+import { ProfileMenu } from '../../dashboard/components/ProfileMenu';
 import { RootStackParamList } from '../../../navigation/types';
 import moment from 'moment';
 import FloatingActionButton from '../../dashboard/components/FloatingActionButton';
@@ -35,6 +37,18 @@ export function TransactionsListScreen() {
   const [viewMode, setViewMode] = useState<'expense' | 'income' | 'total'>('expense');
   const [sortMode, setSortMode] = useState<'date' | 'amount'>('date');
   const [isSortMenuVisible, setIsSortMenuVisible] = useState(false);
+
+  // Add notification bell and profile menu to header
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <View style={styles.headerRight}>
+          <NotificationIcon />
+          <ProfileMenu />
+        </View>
+      ),
+    });
+  }, [navigation]);
 
   // Sync with Dashboard filter when it changes (only if user hasn't overridden locally)
   useEffect(() => {
@@ -100,39 +114,82 @@ export function TransactionsListScreen() {
   );
 
   // Remove duplicate transactions based on key fields
+  // Using the same simple approach as DashboardScreen for consistency
   const deduplicatedTransactions = useMemo(() => {
     if (!transactions || transactions.length === 0) return [];
     
-    // Create a map to track unique transactions
+    // PRIMARY: Deduplicate by transaction ID first (most important)
+    // This ensures each transaction ID appears only once
+    const byId = new Map<string, TransactionWithCategory>();
+    transactions.forEach((transaction) => {
+      if (!transaction.id) {
+        console.warn('Transaction without ID found:', transaction);
+        return;
+      }
+      
+      if (!byId.has(transaction.id)) {
+        byId.set(transaction.id, transaction);
+      } else {
+        // If same ID exists, prioritize user-edited transactions
+        const existing = byId.get(transaction.id)!;
+        if (transaction.category_user_id && !existing.category_user_id) {
+          byId.set(transaction.id, transaction);
+        }
+        // Otherwise keep existing (first occurrence or already user-edited)
+      }
+    });
+    
+    // SECONDARY: Deduplicate by content (same as DashboardScreen approach)
+    // This handles cases where same transaction might have different IDs
     const seen = new Map<string, TransactionWithCategory>();
     let duplicateCount = 0;
     
-    transactions.forEach((transaction) => {
-      // Create a unique key based on: user_id, amount, occurred_at (date only), and raw_description
-      // This helps identify duplicates even if they have different IDs
+    Array.from(byId.values()).forEach((transaction) => {
       const dateKey = moment(transaction.occurred_at).format('YYYY-MM-DD');
-      // Normalize description to handle slight variations (trim, lowercase for comparison)
       const normalizedDescription = (transaction.raw_description || '').trim().toLowerCase();
       const uniqueKey = `${transaction.user_id}_${transaction.amount}_${dateKey}_${normalizedDescription}`;
       
-      // If we haven't seen this transaction before, or if this one has a more recent created_at
       if (!seen.has(uniqueKey)) {
         seen.set(uniqueKey, transaction);
       } else {
-        // If duplicate found, keep the one with the most recent created_at
+        // Duplicate found - prefer user-edited or more recent
         duplicateCount++;
         const existing = seen.get(uniqueKey)!;
-        if (moment(transaction.created_at).isAfter(moment(existing.created_at))) {
+        
+        const existingIsUserEdited = !!existing.category_user_id;
+        const currentIsUserEdited = !!transaction.category_user_id;
+        
+        if (currentIsUserEdited && !existingIsUserEdited) {
+          // Current is user-edited, existing is not - prefer current
           seen.set(uniqueKey, transaction);
+        } else if (!currentIsUserEdited && existingIsUserEdited) {
+          // Existing is user-edited, current is not - keep existing
+          // Don't update
+        } else {
+          // Both or neither are user-edited - keep the one with more recent created_at
+          if (moment(transaction.created_at).isAfter(moment(existing.created_at))) {
+            seen.set(uniqueKey, transaction);
+          }
         }
       }
     });
     
     if (duplicateCount > 0) {
-      console.log(`⚠️ Removed ${duplicateCount} duplicate transaction(s)`);
+      console.log(`⚠️ TransactionsList: Removed ${duplicateCount} duplicate transaction(s)`);
     }
     
-    return Array.from(seen.values());
+    // FINAL: Ensure absolutely no duplicate IDs (safety check)
+    const finalResult: TransactionWithCategory[] = [];
+    const finalIds = new Set<string>();
+    
+    Array.from(seen.values()).forEach((transaction) => {
+      if (!finalIds.has(transaction.id)) {
+        finalIds.add(transaction.id);
+        finalResult.push(transaction);
+      }
+    });
+    
+    return finalResult;
   }, [transactions]);
 
   const handleEditTransaction = (transaction: TransactionWithCategory) => {
@@ -1018,5 +1075,9 @@ const styles = StyleSheet.create({
   sortMenuItemTextActive: {
     fontWeight: '600',
     color: '#007a33',
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
 });

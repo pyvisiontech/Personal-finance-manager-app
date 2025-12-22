@@ -5,7 +5,6 @@ import android.content.Intent
 import android.os.Build
 import android.provider.DocumentsContract
 import com.facebook.react.bridge.ActivityEventListener
-import com.facebook.react.bridge.BaseActivityEventListener
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
@@ -19,8 +18,8 @@ class DownloadManagerModule(reactContext: ReactApplicationContext) :
     private var saveFilePromise: Promise? = null
     private var tempFileUri: String? = null
 
-    private val activityEventListener: ActivityEventListener = object : BaseActivityEventListener() {
-        override fun onActivityResult(activity: Activity?, requestCode: Int, resultCode: Int, intent: Intent?) {
+    private val activityEventListener: ActivityEventListener = object : ActivityEventListener {
+        override fun onActivityResult(activity: Activity, requestCode: Int, resultCode: Int, data: Intent?) {
             if (requestCode == REQUEST_CODE_SAVE_FILE) {
                 val promise = saveFilePromise
                 val tempUri = tempFileUri
@@ -28,17 +27,28 @@ class DownloadManagerModule(reactContext: ReactApplicationContext) :
                 saveFilePromise = null
                 tempFileUri = null
 
-                if (resultCode == Activity.RESULT_OK && intent != null && intent.data != null) {
-                    val destinationUri = intent.data!!
+                if (resultCode == Activity.RESULT_OK && data != null && data.data != null) {
+                    val destinationUri = data.data!!
                     try {
-                        val sourceFile = File(tempUri ?: return)
+                        if (tempUri == null) {
+                            promise?.reject("FILE_NOT_FOUND", "Source file URI is null")
+                            return
+                        }
+                        
+                        val sourceFile = File(tempUri)
                         if (!sourceFile.exists()) {
                             promise?.reject("FILE_NOT_FOUND", "Source file does not exist")
                             return
                         }
 
                         val resolver = reactApplicationContext.contentResolver
-                        resolver.openOutputStream(destinationUri)?.use { output ->
+                        val outputStream = resolver.openOutputStream(destinationUri)
+                        if (outputStream == null) {
+                            promise?.reject("SAVE_ERROR", "Failed to open output stream")
+                            return
+                        }
+                        
+                        outputStream.use { output ->
                             FileInputStream(sourceFile).use { input ->
                                 input.copyTo(output)
                             }
@@ -68,7 +78,7 @@ class DownloadManagerModule(reactContext: ReactApplicationContext) :
 
     @ReactMethod
     fun saveFileWithPicker(fileUri: String, fileName: String, promise: Promise) {
-        val activity = currentActivity
+        val activity = reactApplicationContext.currentActivity
         if (activity == null) {
             promise.reject("NO_ACTIVITY", "No current activity")
             return
@@ -96,6 +106,7 @@ class DownloadManagerModule(reactContext: ReactApplicationContext) :
                 }
             }
 
+            @Suppress("DEPRECATION")
             activity.startActivityForResult(intent, REQUEST_CODE_SAVE_FILE)
         } catch (e: Exception) {
             saveFilePromise = null

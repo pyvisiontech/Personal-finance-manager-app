@@ -9,6 +9,7 @@ import { StatementImport, StatementStatus } from '../../../lib/types';
 import { RootStackParamList } from '../../../navigation/types';
 import { supabase } from '../../../lib/supabase';
 import moment from 'moment';
+import { fetchStatementTransactions, exportStatementToExcel, downloadStatementExcel } from '../../../utils/statementExport';
 
 // Calculate status bar height for header padding
 const STATUS_BAR_HEIGHT = Platform.OS === 'ios' ? 50 : (StatusBar.currentHeight || 0) + 12;
@@ -20,6 +21,7 @@ export function StatementsListScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [checkingStatus, setCheckingStatus] = useState<string | null>(null);
   const [reprocessing, setReprocessing] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -248,6 +250,55 @@ export function StatementsListScreen() {
     return moment(dateString).format('MMM DD, YYYY hh:mm A');
   };
 
+  // Download statement transactions as Excel
+  const handleDownloadStatement = async (statement: StatementImport) => {
+    if (!user?.id) {
+      Alert.alert('Error', 'User not found');
+      return;
+    }
+
+    setDownloading(statement.id);
+    try {
+      // Fetch transactions for this statement
+      const transactions = await fetchStatementTransactions(
+        user.id,
+        statement.id,
+        statement.created_at,
+        statement.processed_at
+      );
+
+      if (transactions.length === 0) {
+        Alert.alert(
+          'No Transactions Found', 
+          'No transactions were found for this statement. This could mean:\n\n' +
+          '• The statement is still being processed\n' +
+          '• No transactions were extracted from the statement\n' +
+          '• There may be a timing issue with transaction creation\n\n' +
+          'Please check the Transactions page to see if transactions from this statement are available there.',
+          [{ text: 'OK' }]
+        );
+        setDownloading(null);
+        return;
+      }
+
+      // Generate Excel file with two sheets
+      const statementFileName = getFileName(statement.file_url);
+      const { fileUri, fileName } = await exportStatementToExcel(transactions, statementFileName);
+
+      // Download/share the file
+      await downloadStatementExcel(fileUri, fileName);
+    } catch (error: any) {
+      console.error('Download error:', error);
+      Alert.alert(
+        'Download Failed',
+        error.message || 'Failed to download statement. Please try again.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setDownloading(null);
+    }
+  };
+
   const renderStatement = (statement: StatementImport, isLast: boolean = false) => {
     const statusColor = getStatusColor(statement.status);
     const statusIcon = getStatusIcon(statement.status);
@@ -255,12 +306,20 @@ export function StatementsListScreen() {
     const fileName = getFileName(statement.file_url);
     const isChecking = checkingStatus === statement.id;
     const isReprocessing = reprocessing === statement.id;
+    const isDownloading = downloading === statement.id;
     const canCheckStatus = statement.status === 'uploaded' || statement.status === 'processing';
     // Only show Process button for failed statements that need to be reprocessed
     const canReprocess = statement.status === 'failed';
+    const canDownload = statement.status === 'completed';
 
     return (
-      <View key={statement.id} style={[styles.statementItem, isLast && styles.lastStatementItem]}>
+      <TouchableOpacity
+        key={statement.id}
+        style={[styles.statementItem, isLast && styles.lastStatementItem]}
+        onPress={canDownload ? () => handleDownloadStatement(statement) : undefined}
+        disabled={!canDownload || isDownloading}
+        activeOpacity={canDownload ? 0.7 : 1}
+      >
         <View style={styles.statementLeft}>
           <View style={[styles.statusIconContainer, { backgroundColor: `${statusColor}15` }]}>
             <MaterialIcons name={statusIcon} size={24} color={statusColor} />
@@ -288,10 +347,28 @@ export function StatementsListScreen() {
           </View>
         </View>
         <View style={styles.statementRight}>
-          <View style={[styles.statusBadge, { backgroundColor: `${statusColor}20` }]}>
-            <Text style={[styles.statusText, { color: statusColor }]}>
-              {statusLabel}
-            </Text>
+          <View style={styles.statusAndDownloadRow}>
+            <View style={[styles.statusBadge, { backgroundColor: `${statusColor}20` }]}>
+              <Text style={[styles.statusText, { color: statusColor }]}>
+                {statusLabel}
+              </Text>
+            </View>
+            {canDownload && (
+              <TouchableOpacity
+                style={styles.downloadButton}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  handleDownloadStatement(statement);
+                }}
+                disabled={isDownloading}
+              >
+                {isDownloading ? (
+                  <ActivityIndicator size="small" color="#007a33" />
+                ) : (
+                  <MaterialIcons name="download" size={20} color="#007a33" />
+                )}
+              </TouchableOpacity>
+            )}
           </View>
           <View style={styles.actionButtons}>
             {canReprocess && (
@@ -325,7 +402,7 @@ export function StatementsListScreen() {
             )}
           </View>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -591,12 +668,29 @@ const styles = StyleSheet.create({
   statementRight: {
     alignItems: 'flex-end',
   },
+  statusAndDownloadRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
   statusBadge: {
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 12,
     minWidth: 90,
     alignItems: 'center',
+  },
+  downloadButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#e0f7f1',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 36,
+    minHeight: 36,
+    borderWidth: 1,
+    borderColor: '#007a33',
   },
   statusText: {
     fontSize: 12,
