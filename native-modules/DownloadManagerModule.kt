@@ -78,7 +78,7 @@ class DownloadManagerModule(reactContext: ReactApplicationContext) :
 
     @ReactMethod
     fun saveFileWithPicker(fileUri: String, fileName: String, promise: Promise) {
-        val activity = reactApplicationContext.currentActivity
+        val activity = getCurrentActivity()
         if (activity == null) {
             promise.reject("NO_ACTIVITY", "No current activity")
             return
