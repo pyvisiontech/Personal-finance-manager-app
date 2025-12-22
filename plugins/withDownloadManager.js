@@ -111,39 +111,46 @@ const withDownloadManager = (config) => {
       }
       
       // Add package to packages list if not present
-      if (!contents.includes('add(DownloadManagerPackage())')) {
-        // Try multiple patterns to find the packages list
-        const patterns = [
-          // Pattern 1: Standard format
-          /(PackageList\(this\)\.packages\.apply\s*\{)([\s\S]*?)(\s*\})/,
-          // Pattern 2: With comments
-          /(PackageList\(this\)\.packages\.apply\s*\{[\s\S]*?)(\s*\})/,
-        ];
+      if (!contents.includes('add(DownloadManagerPackage())') && !contents.includes('DownloadManagerPackage()')) {
+        // Try to find the getPackages function
+        const getPackagesMatch = contents.match(/(override\s+fun\s+getPackages\(\)[^{]*\{)([\s\S]*?)(\s*\})/);
         
-        let found = false;
-        for (const pattern of patterns) {
-          const match = contents.match(pattern);
-          if (match) {
-            const before = match[1];
-            const middle = match[2] || '';
-            const after = match[3] || match[2];
+        if (getPackagesMatch) {
+          const before = getPackagesMatch[1];
+          const middle = getPackagesMatch[2] || '';
+          const after = getPackagesMatch[3];
+          
+          // Find the closing brace of PackageList(...).packages.apply { ... }
+          const applyMatch = middle.match(/(PackageList\([^)]+\)\.packages\.apply\s*\{)([\s\S]*?)(\s*\})/);
+          
+          if (applyMatch) {
+            const applyBefore = applyMatch[1];
+            const applyMiddle = applyMatch[2] || '';
+            const applyAfter = applyMatch[3];
             
-            // Check if already added
-            if (!middle.includes('DownloadManagerPackage') && !before.includes('DownloadManagerPackage')) {
-              // Add the package registration
-              const newContent = before + (middle.trim() ? middle.trim() + '\n              ' : '') + 'add(DownloadManagerPackage())\n            ' + after;
-              contents = contents.replace(pattern, newContent);
-              modified = true;
-              found = true;
-              break;
-            }
+            // Add the package registration before the closing brace
+            const newApplyContent = applyBefore + 
+              (applyMiddle.trim() ? applyMiddle.trim() + '\n              ' : '') + 
+              'add(DownloadManagerPackage())\n            ' + 
+              applyAfter;
+            
+            contents = contents.replace(
+              /(PackageList\([^)]+\)\.packages\.apply\s*\{)([\s\S]*?)(\s*\})/,
+              newApplyContent
+            );
+            modified = true;
+          } else {
+            // Fallback: try to add after PackageList
+            contents = contents.replace(
+              /(PackageList\([^)]+\)\.packages\.apply\s*\{)/,
+              '$1\n              add(DownloadManagerPackage())\n            '
+            );
+            modified = true;
           }
-        }
-        
-        if (!found) {
-          // Last resort: append before closing brace
+        } else {
+          // Last resort: search for any packages list pattern
           contents = contents.replace(
-            /(\s*\/\/ Packages that cannot be autolinked[\s\S]*?)(\s*\})/,
+            /(PackageList\([^)]+\)\.packages\.apply\s*\{[\s\S]*?)(\s*\})/,
             '$1\n              add(DownloadManagerPackage())\n            $2'
           );
           modified = true;

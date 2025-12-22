@@ -2,7 +2,16 @@ import { NativeModules, Platform } from 'react-native';
 
 // Debug: Log all available native modules
 if (__DEV__ && Platform.OS === 'android') {
-  console.log('Available native modules:', Object.keys(NativeModules));
+  const moduleKeys = Object.keys(NativeModules);
+  console.log('Available native modules:', moduleKeys);
+  console.log('NativeModules object:', NativeModules);
+  
+  // Check specifically for DownloadManagerModule
+  if (NativeModules.DownloadManagerModule) {
+    console.log('✅ DownloadManagerModule found!');
+  } else {
+    console.warn('❌ DownloadManagerModule not found in NativeModules');
+  }
 }
 
 const { DownloadManagerModule } = NativeModules;
