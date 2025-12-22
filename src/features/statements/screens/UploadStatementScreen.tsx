@@ -85,7 +85,7 @@ export function UploadStatementScreen() {
 
   return (
     <ScrollView style={styles.container}>
-      <Text style={styles.title}>Upload Statement</Text>
+      {/* <Text style={styles.title}>Upload Statement</Text> */}
       <Text style={styles.subtitle}>Upload your bank statement to import transactions</Text>
 
       <View style={styles.card}>

@@ -209,25 +209,32 @@ const ManualTransactionScreen = () => {
 
   // Hide tab bar when this screen is focused
   useLayoutEffect(() => {
-    navigation.getParent()?.setOptions({
-      tabBarStyle: {
-        height: 0,
-        overflow: 'hidden',
-        borderTopWidth: 0,
-      },
-    });
+    const parent = navigation.getParent();
+    if (parent) {
+      parent.setOptions({
+        tabBarStyle: {
+          display: 'none',
+        },
+      });
+    }
 
     return () => {
       // Show tab bar when leaving this screen
-      navigation.getParent()?.setOptions({
-        tabBarStyle: {
-          backgroundColor: '#f4f1e3',
-          borderTopColor: '#d8d2b8',
-          height: 68,
-          paddingBottom: 10,
-          paddingTop: 8,
-        },
-      });
+      if (parent) {
+        parent.setOptions({
+          tabBarStyle: {
+            backgroundColor: '#f4f1e3',
+            borderTopColor: '#d8d2b8',
+            height: 68,
+            paddingBottom: 10,
+            paddingTop: 8,
+            marginBottom: 8,
+            borderTopLeftRadius: 0,
+            borderTopRightRadius: 0,
+            display: 'flex',
+          },
+        });
+      }
     };
   }, [navigation]);
   const [transactionType, setTransactionType] = useState<'expense' | 'income'>('expense');
@@ -426,7 +433,11 @@ const ManualTransactionScreen = () => {
         )}
       </View>
 
-      <ScrollView style={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView 
+        style={styles.content} 
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
         {/* Transaction Type Tabs */}
         <View style={styles.typeContainer}>
           {['expense', 'income'].map((type) => (
@@ -646,7 +657,10 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  scrollContent: {
     padding: 16,
+    paddingBottom: 32, // Add padding at bottom to ensure content is fully visible
   },
   sectionContainer: {
     marginBottom: 24,
