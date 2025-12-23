@@ -113,63 +113,31 @@ export function TransactionsListScreen() {
     { startDate, endDate }
   );
 
-  // Remove duplicate transactions based on key fields
-  // Using the same simple approach as DashboardScreen for consistency
+  // Remove duplicate transactions based on key fields (same logic as DashboardScreen)
   const deduplicatedTransactions = useMemo(() => {
     if (!transactions || transactions.length === 0) return [];
     
-    // PRIMARY: Deduplicate by transaction ID first (most important)
-    // This ensures each transaction ID appears only once
-    const byId = new Map<string, TransactionWithCategory>();
-    transactions.forEach((transaction) => {
-      if (!transaction.id) {
-        console.warn('Transaction without ID found:', transaction);
-        return;
-      }
-      
-      if (!byId.has(transaction.id)) {
-        byId.set(transaction.id, transaction);
-      } else {
-        // If same ID exists, prioritize user-edited transactions
-        const existing = byId.get(transaction.id)!;
-        if (transaction.category_user_id && !existing.category_user_id) {
-          byId.set(transaction.id, transaction);
-        }
-        // Otherwise keep existing (first occurrence or already user-edited)
-      }
-    });
-    
-    // SECONDARY: Deduplicate by content (same as DashboardScreen approach)
-    // This handles cases where same transaction might have different IDs
+    // Create a map to track unique transactions
     const seen = new Map<string, TransactionWithCategory>();
     let duplicateCount = 0;
     
-    Array.from(byId.values()).forEach((transaction) => {
+    transactions.forEach((transaction) => {
+      // Create a unique key based on: user_id, amount, occurred_at (date only), and raw_description
+      // This helps identify duplicates even if they have different IDs
       const dateKey = moment(transaction.occurred_at).format('YYYY-MM-DD');
+      // Normalize description to handle slight variations (trim, lowercase for comparison)
       const normalizedDescription = (transaction.raw_description || '').trim().toLowerCase();
       const uniqueKey = `${transaction.user_id}_${transaction.amount}_${dateKey}_${normalizedDescription}`;
       
+      // If we haven't seen this transaction before, or if this one has a more recent created_at
       if (!seen.has(uniqueKey)) {
         seen.set(uniqueKey, transaction);
       } else {
-        // Duplicate found - prefer user-edited or more recent
+        // If duplicate found, keep the one with the most recent created_at
         duplicateCount++;
         const existing = seen.get(uniqueKey)!;
-        
-        const existingIsUserEdited = !!existing.category_user_id;
-        const currentIsUserEdited = !!transaction.category_user_id;
-        
-        if (currentIsUserEdited && !existingIsUserEdited) {
-          // Current is user-edited, existing is not - prefer current
+        if (moment(transaction.created_at).isAfter(moment(existing.created_at))) {
           seen.set(uniqueKey, transaction);
-        } else if (!currentIsUserEdited && existingIsUserEdited) {
-          // Existing is user-edited, current is not - keep existing
-          // Don't update
-        } else {
-          // Both or neither are user-edited - keep the one with more recent created_at
-          if (moment(transaction.created_at).isAfter(moment(existing.created_at))) {
-            seen.set(uniqueKey, transaction);
-          }
         }
       }
     });
@@ -178,18 +146,7 @@ export function TransactionsListScreen() {
       console.log(`⚠️ TransactionsList: Removed ${duplicateCount} duplicate transaction(s)`);
     }
     
-    // FINAL: Ensure absolutely no duplicate IDs (safety check)
-    const finalResult: TransactionWithCategory[] = [];
-    const finalIds = new Set<string>();
-    
-    Array.from(seen.values()).forEach((transaction) => {
-      if (!finalIds.has(transaction.id)) {
-        finalIds.add(transaction.id);
-        finalResult.push(transaction);
-      }
-    });
-    
-    return finalResult;
+    return Array.from(seen.values());
   }, [transactions]);
 
   const handleEditTransaction = (transaction: TransactionWithCategory) => {

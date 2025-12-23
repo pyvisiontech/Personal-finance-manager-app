@@ -365,7 +365,7 @@ const ManualTransactionScreen = () => {
         // Update ALL fields in a single atomic operation
         const updatePayload = {
           ...payload,
-          category_ai_id: null, // Always clear AI category when user edits
+          
         };
         
         console.log('Updating transaction:', {
