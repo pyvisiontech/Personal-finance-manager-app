@@ -56,7 +56,7 @@ function HomeStackNavigator() {
       <HomeStack.Screen
         name="Profile"
         component={ProfileScreen}
-        options={{ title: 'Profile' }}
+        options={{ headerShown: false }}
       />
     </HomeStack.Navigator>
   );

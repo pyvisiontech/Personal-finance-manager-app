@@ -258,26 +258,6 @@ export function ProfileScreen() {
             )}
           </View>
         </View>
-
-        {/* Account ID Section (for reference) */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <MaterialIcons name="info" size={20} color="#007a33" />
-            <Text style={styles.sectionTitle}>Account Information</Text>
-          </View>
-
-          <View style={styles.infoCard}>
-            <View style={styles.infoRow}>
-              <View style={styles.infoLabelContainer}>
-                <MaterialIcons name="fingerprint" size={18} color="#6b7280" />
-                <Text style={styles.infoLabel}>User ID</Text>
-              </View>
-              <Text style={[styles.infoValue, styles.userIdText]} numberOfLines={1} ellipsizeMode="middle">
-                {user?.id || 'N/A'}
-              </Text>
-            </View>
-          </View>
-        </View>
       </ScrollView>
     </View>
   );
@@ -421,10 +401,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     flex: 1,
     textAlign: 'right',
-  },
-  userIdText: {
-    fontSize: 12,
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
   },
   divider: {
     height: 1,

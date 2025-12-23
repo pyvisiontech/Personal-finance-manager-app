@@ -64,8 +64,12 @@ export function NotificationIcon() {
         transparent={true}
         onRequestClose={() => setModalVisible(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setModalVisible(false)}
+        >
+          <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Notifications</Text>
               <View style={styles.modalHeaderActions}>
@@ -130,7 +134,7 @@ export function NotificationIcon() {
               />
             )}
           </View>
-        </View>
+        </TouchableOpacity>
       </Modal>
     </>
   );
