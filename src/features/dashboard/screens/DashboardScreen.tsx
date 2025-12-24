@@ -15,6 +15,8 @@ import { FilterMenu, FilterPeriod } from '../components/FilterMenu';
 import { SummaryOverview } from '../components/SummaryOverview';
 import { ExpenseOverviewChart } from '../components/ExpenseOverviewChart';
 import { TotalOverviewChart } from '../components/TotalOverviewChart';
+import { NotificationIcon } from '../components/NotificationIcon';
+import { ProfileMenu } from '../components/ProfileMenu';
 
 
 // Hooks
@@ -153,30 +155,17 @@ export default function DashboardScreen() {
     updateFilter(period, newDate);
   }, [updateFilter]);
 
-  const { signOut } = useAuth();
-
   useLayoutEffect(() => {
-    // Add logout button to header
+    // Add notification bell and profile icon to header
     navigation.setOptions({
       headerRight: () => (
-        <TouchableOpacity
-          onPress={async () => {
-            try {
-              await signOut();
-              // Navigation will be handled automatically by AppNavigator
-              // based on auth state change - no manual navigation needed
-            } catch (error) {
-              console.error('Error signing out:', error);
-              alert('Error signing out. Please try again.');
-            }
-          }}
-          style={styles.logoutButton}
-        >
-          <Text style={styles.logoutText}>Logout</Text>
-        </TouchableOpacity>
+        <View style={styles.headerRight}>
+          <NotificationIcon />
+          <ProfileMenu />
+        </View>
       ),
     });
-  }, [navigation, signOut]);
+  }, [navigation]);
 
 
 
@@ -606,17 +595,9 @@ export default function DashboardScreen() {
 }
 
 const styles = StyleSheet.create({
-  logoutButton: {
-    marginRight: 15,
-    padding: 8,
-    backgroundColor: '#f8fafc',
-    borderRadius: 5,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  logoutText: {
-    color: '#ef4444',
-    fontWeight: '500',
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   headerContainer: {
     backgroundColor: '#007a33',

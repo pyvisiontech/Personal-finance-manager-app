@@ -13,6 +13,7 @@ import ManualTransactionScreen from '../features/transactions/screens/ManualTran
 
 import { UploadStatementScreen } from '../features/statements/screens/UploadStatementScreen';
 import { StatementsListScreen } from '../features/statements/screens/StatementsListScreen';
+import { ProfileScreen } from '../features/profile/screens/ProfileScreen';
 import { View, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { RouteProp } from '@react-navigation/native';
@@ -51,6 +52,11 @@ function HomeStackNavigator() {
         name="UploadStatement"
         component={UploadStatementScreen}
         options={{ title: 'Upload Statement' }}
+      />
+      <HomeStack.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{ headerShown: false }}
       />
     </HomeStack.Navigator>
   );

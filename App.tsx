@@ -2,6 +2,7 @@ import { StatusBar } from 'expo-status-bar';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './src/context/AuthContext';
 import { FilterProvider } from './src/context/FilterContext';
+import { NotificationProvider } from './src/context/NotificationContext';
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { cssInterop } from 'nativewind';
 import { 
@@ -49,8 +50,10 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <FilterProvider>
-          <AppNavigator />
-          <StatusBar style="auto" />
+          <NotificationProvider>
+            <AppNavigator />
+            <StatusBar style="auto" />
+          </NotificationProvider>
         </FilterProvider>
       </AuthProvider>
     </QueryClientProvider>

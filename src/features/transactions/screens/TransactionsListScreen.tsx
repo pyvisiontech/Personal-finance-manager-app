@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useLayoutEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, RefreshControl, StyleSheet } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -11,6 +11,8 @@ import { TransactionWithCategory } from '../../../lib/types';
 import { FilterMenu, FilterPeriod } from '../../dashboard/components/FilterMenu';
 import { DateNavigator } from '../../dashboard/components/DateNavigator';
 import { SummaryOverview } from '../../dashboard/components/SummaryOverview';
+import { NotificationIcon } from '../../dashboard/components/NotificationIcon';
+import { ProfileMenu } from '../../dashboard/components/ProfileMenu';
 import { RootStackParamList } from '../../../navigation/types';
 import moment from 'moment';
 import FloatingActionButton from '../../dashboard/components/FloatingActionButton';
@@ -35,6 +37,18 @@ export function TransactionsListScreen() {
   const [viewMode, setViewMode] = useState<'expense' | 'income' | 'total'>('expense');
   const [sortMode, setSortMode] = useState<'date' | 'amount'>('date');
   const [isSortMenuVisible, setIsSortMenuVisible] = useState(false);
+
+  // Add notification bell and profile menu to header
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <View style={styles.headerRight}>
+          <NotificationIcon />
+          <ProfileMenu />
+        </View>
+      ),
+    });
+  }, [navigation]);
 
   // Sync with Dashboard filter when it changes (only if user hasn't overridden locally)
   useEffect(() => {
@@ -99,7 +113,7 @@ export function TransactionsListScreen() {
     { startDate, endDate }
   );
 
-  // Remove duplicate transactions based on key fields
+  // Remove duplicate transactions based on key fields (same logic as DashboardScreen)
   const deduplicatedTransactions = useMemo(() => {
     if (!transactions || transactions.length === 0) return [];
     
@@ -129,7 +143,7 @@ export function TransactionsListScreen() {
     });
     
     if (duplicateCount > 0) {
-      console.log(`⚠️ Removed ${duplicateCount} duplicate transaction(s)`);
+      console.log(`⚠️ TransactionsList: Removed ${duplicateCount} duplicate transaction(s)`);
     }
     
     return Array.from(seen.values());
@@ -1018,5 +1032,9 @@ const styles = StyleSheet.create({
   sortMenuItemTextActive: {
     fontWeight: '600',
     color: '#007a33',
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
 });

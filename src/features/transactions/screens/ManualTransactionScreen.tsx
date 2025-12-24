@@ -248,13 +248,24 @@ const ManualTransactionScreen = () => {
 
   useEffect(() => {
     if (existingTransaction) {
+      console.log('📝 Editing transaction:', {
+        id: existingTransaction.id,
+        amount: existingTransaction.amount,
+        type: existingTransaction.type,
+        hasCategoryUser: !!existingTransaction.category_user_id,
+        hasCategoryAi: !!existingTransaction.category_ai_id,
+      });
+      
       setAmount(Math.abs(existingTransaction.amount).toString());
       setTransactionType(existingTransaction.type === 'income' ? 'income' : 'expense');
       setNote(existingTransaction.raw_description || existingTransaction.merchant || '');
 
-      // Set the date from the existing transaction
+      // Set the date from the existing transaction (preserve the time)
       if (existingTransaction.occurred_at) {
-        setDate(new Date(existingTransaction.occurred_at));
+        // Parse the date and preserve the original time
+        const transactionDate = moment(existingTransaction.occurred_at).toDate();
+        // Don't reset hours - preserve the original time from the transaction
+        setDate(transactionDate);
       }
 
       const category =
@@ -269,6 +280,8 @@ const ManualTransactionScreen = () => {
           icon: category.icon || '📦',
         });
       }
+    } else {
+      console.log('➕ Creating new transaction (not editing)');
     }
   }, [existingTransaction]);
 
@@ -311,6 +324,20 @@ const ManualTransactionScreen = () => {
       return;
     }
 
+    // Validate selectedCategory has an ID
+    if (!selectedCategory.id) {
+      Alert.alert('Error', 'Selected category is missing an ID');
+      console.error('❌ Selected category has no ID:', selectedCategory);
+      return;
+    }
+
+    // Validate that we have transaction ID when editing
+    if (isEditing && (!existingTransaction || !existingTransaction.id)) {
+      Alert.alert('Error', 'Cannot edit: Transaction ID is missing');
+      console.error('❌ Edit attempt without transaction ID:', { isEditing, existingTransaction });
+      return;
+    }
+
     try {
       // Evaluate expected amount here
       const calculatedAmount = evaluateExpression(amount);
@@ -334,6 +361,11 @@ const ManualTransactionScreen = () => {
       const accountId = accounts?.[0]?.id || null;
 
 
+      // Use the date as-is (preserve the time component)
+      // When editing, this preserves the original transaction time
+      // When creating new, this uses the current time from the date object
+      const occurredAt = moment(date).local().format('YYYY-MM-DD HH:mm:ss');
+
       // Always use the selected date from the date picker
       const payload = {
         account_id: accountId,
@@ -346,22 +378,117 @@ const ManualTransactionScreen = () => {
         merchant: existingTransaction?.merchant || null,
         status: existingTransaction?.status || 'final',
         category_user_id: selectedCategory.id,
-        occurred_at: date.toISOString(), // Use the selected date from date picker
+        occurred_at: occurredAt, // Use formatted date string
       };
 
-      if (isEditing && existingTransaction) {
-        const { error: updateError } = await supabase
+      if (isEditing && existingTransaction && existingTransaction.id) {
+        // When editing, UPDATE the existing transaction with the same UUID
+        // Preserve category_ai_id if it exists (don't set to null)
+        const updatePayload = {
+          account_id: accountId,
+          user_id: user.id,
+          source: existingTransaction.source || 'manual', // Preserve original source
+          amount: Math.abs(calculatedAmount) * (transactionType === 'expense' ? -1 : 1),
+          currency: existingTransaction.currency || 'INR',
+          type: transactionType,
+          raw_description: note || existingTransaction.raw_description || 'Manual transaction',
+          merchant: existingTransaction.merchant || null,
+          status: existingTransaction.status || 'final',
+          category_user_id: selectedCategory.id, // Set user category
+          category_ai_id: existingTransaction.category_ai_id || null, // PRESERVE existing AI category (don't clear it)
+          occurred_at: occurredAt,
+        };
+        
+        console.log('📤 Updating transaction:', {
+          transactionId: existingTransaction.id,
+          oldAmount: existingTransaction.amount,
+          newAmount: updatePayload.amount,
+          oldCategoryUser: existingTransaction.category_user_id,
+          oldCategoryAi: existingTransaction.category_ai_id,
+          newCategoryUser: updatePayload.category_user_id,
+          preservingAiCategory: updatePayload.category_ai_id,
+        });
+        console.log('📤 Full update payload:', JSON.stringify(updatePayload, null, 2));
+        
+        // UPDATE the existing transaction - do NOT create a new one
+        const { data: updatedData, error: updateError } = await supabase
           .from('transactions')
-          .update(payload)
-          .eq('id', existingTransaction.id);
+          .update(updatePayload)
+          .eq('id', existingTransaction.id) // Update by ID to ensure same UUID
+          .select()
+          .single();
+        
+        console.log('📥 Update response:', {
+          hasData: !!updatedData,
+          hasError: !!updateError,
+          updatedCategoryUser: updatedData?.category_user_id,
+          updatedCategoryAi: updatedData?.category_ai_id,
+        });
 
-        if (updateError) throw updateError;
+        if (updateError) {
+          console.error('❌ Update error:', updateError);
+          Alert.alert('Update Failed', `Failed to update transaction: ${updateError.message}`);
+          throw updateError;
+        }
+        
+        if (!updatedData) {
+          const errorMsg = 'Transaction update returned no data - transaction may not exist';
+          console.error('❌', errorMsg);
+          Alert.alert('Update Failed', errorMsg);
+          throw new Error(errorMsg);
+        }
+        
+        // Verify the updated transaction has the same ID
+        if (updatedData.id !== existingTransaction.id) {
+          const errorMsg = `Transaction ID mismatch! Expected ${existingTransaction.id}, got ${updatedData.id}`;
+          console.error('❌', errorMsg);
+          throw new Error(errorMsg);
+        }
+        
+        // Verify the category_user_id was actually saved
+        if (updatedData.category_user_id !== selectedCategory.id) {
+          const errorMsg = `Category not saved! Expected ${selectedCategory.id}, got ${updatedData.category_user_id}`;
+          console.error('❌', errorMsg);
+          console.error('Update payload was:', updatePayload);
+          console.error('Updated data received:', updatedData);
+          Alert.alert('Warning', 'Category may not have been saved correctly. Please check Supabase.');
+        }
+        
+        console.log('✅ Transaction updated successfully:', {
+          id: updatedData.id,
+          category_user_id: updatedData.category_user_id,
+          category_ai_id: updatedData.category_ai_id,
+          amount: updatedData.amount,
+        });
       } else {
-        const { error: insertError } = await supabase.from('transactions').insert([payload]);
-        if (insertError) throw insertError;
+        // Only INSERT if we're NOT editing (creating a new transaction)
+        if (isEditing) {
+          throw new Error('Cannot edit: Transaction ID is missing');
+        }
+        
+        console.log('Creating new transaction (not editing)');
+        const { data: insertedData, error: insertError } = await supabase
+          .from('transactions')
+          .insert([payload])
+          .select()
+          .single();
+          
+        if (insertError) {
+          console.error('❌ Insert error:', insertError);
+          throw insertError;
+        }
+        
+        console.log('✅ New transaction created:', insertedData?.id);
       }
 
-      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      // Invalidate and refetch all transaction queries to ensure fresh data
+      // Wait for the refetch to complete to ensure the UI shows the updated transaction
+      await queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      await queryClient.refetchQueries({ queryKey: ['transactions'] });
+      
+      // Small delay to ensure the database update is fully propagated
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       navigation.goBack();
     } catch (error) {
       console.error('Error saving transaction:', error);
@@ -486,15 +613,18 @@ const ManualTransactionScreen = () => {
               onChange={(event, selectedDate) => {
                 setShowDatePicker(false);
                 if (selectedDate) {
-                  // Preserve the current time-of-day when changing the date to avoid defaulting to midnight
-                  const withExistingTime = new Date(selectedDate);
-                  withExistingTime.setHours(
-                    date.getHours(),
-                    date.getMinutes(),
-                    date.getSeconds(),
-                    date.getMilliseconds()
+                  // Preserve the current time when changing the date
+                  // This ensures if user is editing, the time is preserved
+                  const newDate = new Date(selectedDate);
+                  const currentDate = date;
+                  // Preserve hours, minutes, seconds from current date
+                  newDate.setHours(
+                    currentDate.getHours(),
+                    currentDate.getMinutes(),
+                    currentDate.getSeconds(),
+                    currentDate.getMilliseconds()
                   );
-                  setDate(withExistingTime);
+                  setDate(newDate);
                 }
               }}
               maximumDate={new Date()}
