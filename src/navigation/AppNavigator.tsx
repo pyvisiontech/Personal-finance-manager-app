@@ -14,15 +14,20 @@ import ManualTransactionScreen from '../features/transactions/screens/ManualTran
 import { UploadStatementScreen } from '../features/statements/screens/UploadStatementScreen';
 import { StatementsListScreen } from '../features/statements/screens/StatementsListScreen';
 import { ProfileScreen } from '../features/profile/screens/ProfileScreen';
+import { GroupsListScreen } from '../features/groups/screens/GroupsListScreen';
+import { CreateGroupScreen } from '../features/groups/screens/CreateGroupScreen';
+import { GroupDashboardScreen } from '../features/groups/screens/GroupDashboardScreen';
+import { NotificationsScreen } from '../features/notifications/screens/NotificationsScreen';
 import { View, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { RouteProp } from '@react-navigation/native';
-import { RootStackParamList } from './types';
+import { RootStackParamList, HomeStackParamList, TransactionsStackParamList, StatementsStackParamList, OnboardingStackParamList } from './types';
 
-const RootStack = createNativeStackNavigator();
-const HomeStack = createNativeStackNavigator();
-const TransactionsStack = createNativeStackNavigator();
-const StatementsStack = createNativeStackNavigator();
+const RootStack = createNativeStackNavigator<RootStackParamList>();
+const HomeStack = createNativeStackNavigator<HomeStackParamList>();
+const TransactionsStack = createNativeStackNavigator<TransactionsStackParamList>();
+const StatementsStack = createNativeStackNavigator<StatementsStackParamList>();
+const OnboardingStack = createNativeStackNavigator<OnboardingStackParamList>();
 const Tab = createBottomTabNavigator();
 
 function AuthNavigator() {
@@ -58,6 +63,30 @@ function HomeStackNavigator() {
         component={ProfileScreen}
         options={{ headerShown: false }}
       />
+      <HomeStack.Screen
+        name="GroupsList"
+        component={GroupsListScreen}
+        options={{ title: 'Groups' }}
+      />
+      <HomeStack.Screen
+        name="CreateGroup"
+        component={CreateGroupScreen}
+        options={({ route }: { route: RouteProp<HomeStackParamList, 'CreateGroup'> }) => ({
+          title: route.params?.groupName ? 'Invite Member' : 'Create Group',
+        })}
+      />
+      <HomeStack.Screen
+        name="GroupDashboard"
+        component={GroupDashboardScreen}
+        options={({ route }: { route: RouteProp<HomeStackParamList, 'GroupDashboard'> }) => ({
+          title: route.params?.groupName || 'Group Dashboard',
+        })}
+      />
+      <HomeStack.Screen
+        name="Notifications"
+        component={NotificationsScreen}
+        options={{ title: 'Notifications' }}
+      />
     </HomeStack.Navigator>
   );
 }
@@ -84,7 +113,7 @@ function TransactionsStackNavigator() {
       <TransactionsStack.Screen
         name="ManualTransaction"
         component={ManualTransactionScreen}
-        options={({ route }: { route: RouteProp<RootStackParamList, 'ManualTransaction'> }) => ({
+        options={({ route }: { route: RouteProp<TransactionsStackParamList, 'ManualTransaction'> }) => ({
           title: route.params?.transaction ? 'Edit Transaction' : 'Add Transaction',
         })}
       />
@@ -176,9 +205,9 @@ function MainTabs() {
 
 function OnboardingNavigator() {
   return (
-    <RootStack.Navigator screenOptions={{ headerShown: false }}>
-      <RootStack.Screen name="Welcome" component={WelcomeScreen} />
-    </RootStack.Navigator>
+    <OnboardingStack.Navigator screenOptions={{ headerShown: false }}>
+      <OnboardingStack.Screen name="Welcome" component={WelcomeScreen} />
+    </OnboardingStack.Navigator>
   );
 }
 
