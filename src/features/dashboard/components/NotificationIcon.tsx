@@ -1,16 +1,14 @@
 import React, { useState } from 'react';
-import { TouchableOpacity, View, Text, StyleSheet, Modal, ScrollView, FlatList } from 'react-native';
+import { TouchableOpacity, View, Text, StyleSheet, Modal, ScrollView, FlatList, Alert } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNotifications } from '../../../context/NotificationContext';
+import { useNotificationActions } from '../../notifications/hooks/useNotificationActions';
 import moment from 'moment';
 
 export function NotificationIcon() {
-  const { notifications, unreadCount, markAsRead, markAllAsRead, clearNotification } = useNotifications();
+  const { notifications, unreadCount } = useNotifications();
+  const { handleNotificationPress, handleMarkAllAsRead, handleDismiss } = useNotificationActions();
   const [modalVisible, setModalVisible] = useState(false);
-
-  const handleNotificationPress = (notificationId: string) => {
-    markAsRead(notificationId);
-  };
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
@@ -24,6 +22,10 @@ export function NotificationIcon() {
         return 'error';
       case 'transaction_added':
         return 'add-circle';
+      case 'group_invite':
+        return 'people';
+      case 'group_joined':
+        return 'check-circle';
       default:
         return 'notifications';
     }
@@ -41,6 +43,10 @@ export function NotificationIcon() {
         return '#EF4444'; // Red
       case 'transaction_added':
         return '#8B5CF6'; // Purple
+      case 'group_invite':
+        return '#007a33'; // Green
+      case 'group_joined':
+        return '#10B981'; // Green
       default:
         return '#6B7280'; // Gray
     }
@@ -75,9 +81,7 @@ export function NotificationIcon() {
               <View style={styles.modalHeaderActions}>
                 {unreadCount > 0 && (
                   <TouchableOpacity
-                    onPress={() => {
-                      markAllAsRead();
-                    }}
+                    onPress={handleMarkAllAsRead}
                     style={styles.markAllReadButton}
                   >
                     <Text style={styles.markAllReadText}>Mark all read</Text>
@@ -123,7 +127,7 @@ export function NotificationIcon() {
                     </View>
                     {!item.read && <View style={styles.unreadDot} />}
                     <TouchableOpacity
-                      onPress={() => clearNotification(item.id)}
+                      onPress={() => handleDismiss(item.id)}
                       style={styles.deleteButton}
                     >
                       <MaterialIcons name="close" size={18} color="#9CA3AF" />

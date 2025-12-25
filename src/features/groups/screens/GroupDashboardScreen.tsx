@@ -1,40 +1,31 @@
-import React, { useCallback, useMemo, useState, useEffect } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { View, ScrollView, StyleSheet, ActivityIndicator, Text, TouchableOpacity } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import moment, { Moment } from 'moment';
+import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
+import moment from 'moment';
 import { useLayoutEffect } from 'react';
-import FloatingActionButton from '../components/FloatingActionButton';
+import { Ionicons } from '@expo/vector-icons';
+import FloatingActionButton from '../../dashboard/components/FloatingActionButton';
 
 
 // Types
-import { Transaction, Category, TransactionWithCategory } from '../../../lib/types';
+import { TransactionWithCategory } from '../../../lib/types';
 
 // Components
-import { DateNavigator } from '../components/DateNavigator';
-import { FilterMenu, FilterPeriod } from '../components/FilterMenu';
-import { SummaryOverview } from '../components/SummaryOverview';
-import { ExpenseOverviewChart } from '../components/ExpenseOverviewChart';
-import { TotalOverviewChart } from '../components/TotalOverviewChart';
-import { NotificationIcon } from '../components/NotificationIcon';
-import { ProfileMenu } from '../components/ProfileMenu';
-import { ViewModeToggle } from '../components/ViewModeToggle';
-
+import { DateNavigator } from '../../dashboard/components/DateNavigator';
+import { FilterMenu, FilterPeriod } from '../../dashboard/components/FilterMenu';
+import { SummaryOverview } from '../../dashboard/components/SummaryOverview';
+import { ExpenseOverviewChart } from '../../dashboard/components/ExpenseOverviewChart';
+import { TotalOverviewChart } from '../../dashboard/components/TotalOverviewChart';
 
 // Hooks
-import { useAuth } from '../../../context/AuthContext';
 import { useFilter } from '../../../context/FilterContext';
-import { useTransactions } from '../../transactions/hooks/useTransactions';
-import { useGroups } from '../../groups/hooks/useGroups';
+import { useGroupTransactions } from '../hooks/useGroupTransactions';
+import { useGroupMembers } from '../hooks/useGroups';
+import { RootStackParamList } from '../../../navigation/types';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
-type RootStackParamList = {
-  Dashboard: undefined;
-  // Add other screens as needed
-};
-
-
-
-// Types
-
+type GroupDashboardRouteProp = RouteProp<RootStackParamList, 'GroupDashboard'>;
+type GroupDashboardNavigationProp = NativeStackNavigationProp<RootStackParamList, 'GroupDashboard'>;
 
 interface ProcessedData {
   totalExpense: number;
@@ -45,21 +36,9 @@ interface ProcessedData {
 }
 
 const pieColors = [
-  '#3B82F6', // Blue 500
-  '#F97316', // Orange 500
-  '#10B981', // Emerald 500
-  '#EC4899', // Pink 500
-  '#8B5CF6', // Violet 500
-  '#F59E0B', // Amber 500
-  '#06B6D4', // Cyan 500
-  '#EF4444', // Red 500
-  '#84CC16', // Lime 500
-  '#6366F1', // Indigo 500
-  '#14B8A6', // Teal 500
-  '#D946EF', // Fuchsia 500
-  '#0EA5E9', // Sky 500
-  '#EAB308', // Yellow 500
-  '#64748B', // Slate 500
+  '#3B82F6', '#F97316', '#10B981', '#EC4899', '#8B5CF6', '#F59E0B',
+  '#06B6D4', '#EF4444', '#84CC16', '#6366F1', '#14B8A6', '#D946EF',
+  '#0EA5E9', '#EAB308', '#64748B',
 ];
 
 interface CategoryMap {
@@ -70,24 +49,17 @@ interface CategoryMap {
   };
 }
 
-
-function processTransactionData(
-  transactions: TransactionWithCategory[]
-): ProcessedData {
-  // Filter out non-expense transactions for the expense breakdown
+function processTransactionData(transactions: TransactionWithCategory[]): ProcessedData {
   const expenseTransactions = transactions.filter((tx) => tx.type === 'expense');
   const incomeTransactions = transactions.filter((tx) => tx.type === 'income');
 
-  // Calculate totals
   const totalExpense = expenseTransactions.reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
   const totalIncome = incomeTransactions.reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
   const balance = totalIncome - totalExpense;
 
-  // Group expenses by category
   const categoryMap: CategoryMap = {};
 
   expenseTransactions.forEach((tx) => {
-    // Use user-assigned category if available, otherwise use AI category
     const category = tx.category_user || tx.category_ai;
     const categoryName = category?.name || 'Uncategorized';
     const categoryId = category?.id || 'uncategorized';
@@ -98,17 +70,14 @@ function processTransactionData(
         name: categoryName,
         amount: 0,
         icon: categoryIcon,
-        // color will be assigned later based on rank
       };
     }
     categoryMap[categoryId].amount += Math.abs(tx.amount);
   });
 
-  // Sort categories by amount (descending) and prepare chart/breakdown data
   const sortedEntries = Object.entries(categoryMap)
     .sort((a, b) => b[1].amount - a[1].amount);
 
-  // Prepare chart data
   const chartData = sortedEntries
     .map(([id, data], index) => ({
       value: data.amount,
@@ -116,10 +85,9 @@ function processTransactionData(
       text: data.name,
     }));
 
-  // Prepare breakdown data with categoryId
   const breakdown = sortedEntries.map(([id, data], index) => ({
     name: data.name,
-    amount: -data.amount, // Negate to show as expense
+    amount: -data.amount,
     percentage: totalExpense > 0 ? Math.round((data.amount / totalExpense) * 100) : 0,
     color: pieColors[index % pieColors.length],
     icon: data.icon,
@@ -135,18 +103,29 @@ function processTransactionData(
   };
 }
 
-
-export default function DashboardScreen() {
-  const navigation = useNavigation<any>(); // Using any as a temporary measure
-  const { user, authReady } = useAuth();
+export function GroupDashboardScreen() {
+  const route = useRoute<GroupDashboardRouteProp>();
+  const navigation = useNavigation<GroupDashboardNavigationProp>();
+  const { groupId, groupName } = route.params;
   const { filterPeriod, currentDate, updateFilter } = useFilter();
   const [viewMode, setViewMode] = useState<'expense' | 'income' | 'total'>('expense');
-  const [dashboardMode, setDashboardMode] = useState<'me' | 'groups'>('me');
-  const { data: groups = [] } = useGroups(user?.id || '');
+  const { data: members = [] } = useGroupMembers(groupId);
 
+  useLayoutEffect(() => {
+    // Add invite member button to header
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity
+          onPress={() => navigation.navigate('CreateGroup', { groupId, groupName })}
+          style={{ marginRight: 16 }}
+        >
+          <Ionicons name="person-add" size={24} color="#ffffff" />
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, groupId, groupName]);
 
   const handleFilterChange = useCallback((period: FilterPeriod) => {
-    // Reset to current period when changing filter type
     const now = moment();
     const newDate = period === 'monthly' ? now.startOf('month') :
       period === 'weekly' ? now.startOf('week') :
@@ -155,44 +134,9 @@ export default function DashboardScreen() {
             period === 'half-yearly' ? (now.month() < 6 ? now.startOf('year') : now.startOf('year').add(6, 'months')) :
               now.startOf('day');
 
-    // Update the shared filter context
     updateFilter(period, newDate);
   }, [updateFilter]);
 
-  useLayoutEffect(() => {
-    // Add toggle, notification bell and profile icon to header
-    navigation.setOptions({
-      headerTitle: () => (
-        <View style={styles.headerTitleContainer}>
-          <Text style={styles.headerTitle}>Dashboard</Text>
-          <ViewModeToggle
-            selectedMode={dashboardMode}
-            onModeChange={(mode) => {
-              setDashboardMode(mode);
-              if (mode === 'groups') {
-                navigation.navigate('GroupsList' as never);
-              }
-            }}
-          />
-        </View>
-      ),
-      headerTitleContainerStyle: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        flex: 1,
-      },
-      headerRight: () => (
-        <View style={styles.headerRight}>
-          <NotificationIcon />
-          <ProfileMenu />
-        </View>
-      ),
-    });
-  }, [navigation, dashboardMode]);
-
-
-
-  // Calculate date range based on filter period
   const startDate = useMemo(() => {
     switch (filterPeriod) {
       case 'daily':
@@ -206,7 +150,7 @@ export default function DashboardScreen() {
       case 'yearly':
         return moment(currentDate).startOf('year').format('YYYY-MM-DD HH:mm:ss');
       case 'half-yearly':
-        return moment(currentDate).format('YYYY-MM-DD HH:mm:ss'); // Assumes currentDate is already start of half-year
+        return moment(currentDate).format('YYYY-MM-DD HH:mm:ss');
       default:
         return moment(currentDate).startOf('month').format('YYYY-MM-DD HH:mm:ss');
     }
@@ -290,50 +234,36 @@ export default function DashboardScreen() {
     };
   }, [filterPeriod, currentDate]);
 
-  // Use React Query hook for transactions - data is cached and only refetches when invalidated
-  const { data: transactions = [], isLoading, isFetching } = useTransactions(
-    user?.id || '',
-    { startDate, endDate }
-  );
+  const { data: transactions = [], isLoading } = useGroupTransactions(groupId, {
+    startDate,
+    endDate,
+  });
 
   // Previous period transactions for Total comparison
-  const { data: previousTransactions = [] } = useTransactions(
-    user?.id || '',
-    { startDate: prevStartDate, endDate: prevEndDate }
-  );
+  const { data: previousTransactions = [] } = useGroupTransactions(groupId, {
+    startDate: prevStartDate,
+    endDate: prevEndDate,
+  });
 
-  // Remove duplicate transactions based on key fields (same logic as TransactionsListScreen)
   const deduplicatedTransactions = useMemo(() => {
     if (!transactions || transactions.length === 0) return [];
     
-    // Create a map to track unique transactions
     const seen = new Map<string, TransactionWithCategory>();
-    let duplicateCount = 0;
     
     transactions.forEach((transaction) => {
-      // Create a unique key based on: user_id, amount, occurred_at (date only), and raw_description
-      // This helps identify duplicates even if they have different IDs
       const dateKey = moment(transaction.occurred_at).format('YYYY-MM-DD');
-      // Normalize description to handle slight variations (trim, lowercase for comparison)
       const normalizedDescription = (transaction.raw_description || '').trim().toLowerCase();
       const uniqueKey = `${transaction.user_id}_${transaction.amount}_${dateKey}_${normalizedDescription}`;
       
-      // If we haven't seen this transaction before, or if this one has a more recent created_at
       if (!seen.has(uniqueKey)) {
         seen.set(uniqueKey, transaction);
       } else {
-        // If duplicate found, keep the one with the most recent created_at
-        duplicateCount++;
         const existing = seen.get(uniqueKey)!;
         if (moment(transaction.created_at).isAfter(moment(existing.created_at))) {
           seen.set(uniqueKey, transaction);
         }
       }
     });
-    
-    if (duplicateCount > 0) {
-      console.log(`⚠️ Dashboard: Removed ${duplicateCount} duplicate transaction(s)`);
-    }
     
     return Array.from(seen.values());
   }, [transactions]);
@@ -362,9 +292,7 @@ export default function DashboardScreen() {
     return Array.from(seen.values());
   }, [previousTransactions]);
 
-  // Process transactions data for the UI (using deduplicated transactions)
   const processed = useMemo(() => {
-    console.log('Processing transactions:', deduplicatedTransactions.length);
     if (deduplicatedTransactions.length === 0) {
       return {
         totalExpense: 0,
@@ -378,7 +306,7 @@ export default function DashboardScreen() {
   }, [deduplicatedTransactions]);
 
   const processedIncome = useMemo(() => {
-    // Filter income transactions (using deduplicated transactions)
+    // Filter income transactions
     const incomeTransactions = deduplicatedTransactions.filter((tx) => tx.type === 'income');
 
     // Group income by category
@@ -438,13 +366,6 @@ export default function DashboardScreen() {
     return processTransactionData(deduplicatedPreviousTransactions);
   }, [deduplicatedPreviousTransactions]);
 
-  // const handleFilterChange = (period: FilterPeriod) => {
-  //   setFilterPeriod(period);
-  //   setCurrentDate(
-  //     period === 'monthly' ? moment().startOf('month') : moment().startOf('week')
-  //   );
-  // };
-
   const handleNavigate = useCallback(
     (direction: 'prev' | 'next') => {
       const newDate = direction === 'prev'
@@ -471,19 +392,11 @@ export default function DashboardScreen() {
                   ? moment(currentDate).add(6, 'months')
                   : moment(currentDate).add(1, 'day').startOf('day'));
 
-      // Update the shared filter context
       updateFilter(filterPeriod, newDate);
     },
     [filterPeriod, currentDate, updateFilter]
   );
 
-  // Get the categories by amount
-  const topCategories = useMemo(() => {
-    return [...processed.breakdown]
-      .sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount))
-  }, [processed.breakdown]);
-
-  // Format period label for display
   const periodLabel = useMemo(() => {
     switch (filterPeriod) {
       case 'daily':
@@ -503,24 +416,22 @@ export default function DashboardScreen() {
     }
   }, [filterPeriod, currentDate]);
 
-  // Show full-screen loading only on initial load when there's no cached data
-  // If data exists but is refetching, show the cached data (no loading screen)
-  // Don't block on authReady if we have a user - allow transactions to load
-  if ((!user || !authReady) && isLoading && deduplicatedTransactions.length === 0) {
+  const topCategories = useMemo(() => {
+    return [...processed.breakdown]
+      .sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount));
+  }, [processed.breakdown]);
+
+  if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#4F46E5" />
-        <Text style={styles.loadingText}>Loading transactions...</Text>
+        <ActivityIndicator size="large" color="#007a33" />
+        <Text style={styles.loadingText}>Loading group transactions...</Text>
       </View>
     );
   }
 
-  // Don't show empty state for the entire screen, just handle empty data in components
-
-
   return (
     <View style={styles.container}>
-      {/* Header with Date Navigation and Filter */}
       <View style={styles.headerContainer}>
         <View style={styles.headerContent}>
           <DateNavigator
@@ -540,7 +451,6 @@ export default function DashboardScreen() {
         </View>
       </View>
 
-      {/* Summary Overview - Always show, even with 0 values */}
       <View style={styles.summaryContainer}>
         <SummaryOverview
           totalExpense={processed.totalExpense}
@@ -554,9 +464,57 @@ export default function DashboardScreen() {
       </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        {/* Group Members Section */}
+        <View style={styles.sectionContainer}>
+          <View style={styles.membersHeader}>
+            <Text style={styles.sectionTitle}>Group Members ({members.length})</Text>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('CreateGroup', { groupId, groupName })}
+              style={styles.inviteButton}
+            >
+              <Ionicons name="person-add" size={18} color="#007a33" />
+              <Text style={styles.inviteButtonText}>Invite</Text>
+            </TouchableOpacity>
+          </View>
+          {members.length > 0 ? (
+            <View style={styles.membersList}>
+              {members.map((member, index) => (
+                <View 
+                  key={member.id} 
+                  style={[
+                    styles.memberItem,
+                    index === members.length - 1 && styles.memberItemLast
+                  ]}
+                >
+                  <View style={styles.memberAvatar}>
+                    <Ionicons name="person" size={20} color="#007a33" />
+                  </View>
+                  <View style={styles.memberInfo}>
+                    <Text style={styles.memberName}>
+                      {member.user?.first_name && member.user?.last_name
+                        ? `${member.user.first_name} ${member.user.last_name}`
+                        : member.user?.email || 'Unknown User'}
+                    </Text>
+                    <Text style={styles.memberEmail}>{member.user?.email || ''}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <View style={styles.emptyMembers}>
+              <Text style={styles.emptyMembersText}>No members yet</Text>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('CreateGroup', { groupId, groupName })}
+                style={styles.inviteEmptyButton}
+              >
+                <Ionicons name="person-add" size={16} color="#007a33" />
+                <Text style={styles.inviteEmptyButtonText}>Invite First Member</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
 
-
-        {/* Overview Section */}
+        {/* Transactions Overview Section */}
         <View style={styles.sectionContainer}>
           <Text style={styles.sectionTitle}>
             {viewMode === 'expense'
@@ -626,8 +584,6 @@ export default function DashboardScreen() {
             )
           )}
         </View>
-
-
       </ScrollView>
       <FloatingActionButton />
     </View>
@@ -635,20 +591,10 @@ export default function DashboardScreen() {
 }
 
 const styles = StyleSheet.create({
-  headerTitleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  container: {
     flex: 1,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#ffffff',
-    marginRight: 12,
-  },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    backgroundColor: '#f4f1e3',
+    position: 'relative',
   },
   headerContainer: {
     backgroundColor: '#007a33',
@@ -667,6 +613,16 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 16,
   },
+  summaryContainer: {
+    marginTop: 1,
+    paddingHorizontal: 1,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 20,
+  },
   sectionContainer: {
     marginTop: 1,
     paddingHorizontal: 8,
@@ -678,39 +634,11 @@ const styles = StyleSheet.create({
     marginBottom: 1,
     marginLeft: 4,
   },
-  summaryContainer: {
-    marginTop: 1,
-    paddingHorizontal: 1,
-  },
-  emptyStateContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  emptyStateSubtext: {
-    fontSize: 14,
-    color: '#6b7280',
-    textAlign: 'center',
-    paddingHorizontal: 20,
-    marginTop: 8,
-  },
-  container: {
-    flex: 1,
-    backgroundColor: '#f4f1e3',
-    position: 'relative',
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 20,
-  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f5f5dc',
+    backgroundColor: '#f4f1e3',
   },
   loadingText: {
     marginTop: 16,
@@ -733,9 +661,6 @@ const styles = StyleSheet.create({
   chartPlaceholder: {
     padding: 40,
   },
-  breakdownPlaceholder: {
-    padding: 32,
-  },
   placeholderCircle: {
     width: 80,
     height: 80,
@@ -752,4 +677,104 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     fontWeight: '500',
   },
+  emptyStateSubtext: {
+    fontSize: 14,
+    color: '#6b7280',
+    textAlign: 'center',
+    paddingHorizontal: 20,
+    marginTop: 8,
+  },
+  membersHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  inviteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#e6f5f0',
+    borderRadius: 8,
+  },
+  inviteButtonText: {
+    color: '#007a33',
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  membersList: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  memberItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+  },
+  memberItemLast: {
+    borderBottomWidth: 0,
+  },
+  memberAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#e6f5f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  memberInfo: {
+    flex: 1,
+  },
+  memberName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 2,
+  },
+  memberEmail: {
+    fontSize: 12,
+    color: '#6b7280',
+  },
+  emptyMembers: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 24,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  emptyMembersText: {
+    fontSize: 14,
+    color: '#6b7280',
+    marginBottom: 12,
+  },
+  inviteEmptyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: '#e6f5f0',
+    borderRadius: 8,
+  },
+  inviteEmptyButtonText: {
+    color: '#007a33',
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 4,
+  },
 });
+
