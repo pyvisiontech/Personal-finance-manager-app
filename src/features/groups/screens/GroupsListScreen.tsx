@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useLayoutEffect } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../../context/AuthContext';
 import { useGroups } from '../hooks/useGroups';
+import { useGroupContext } from '../../../context/GroupContext';
 import { FamilyGroup } from '../../../lib/types';
 import { RootStackParamList } from '../../../navigation/types';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -21,16 +22,42 @@ type GroupsListScreenNavigationProp = NativeStackNavigationProp<RootStackParamLi
 export function GroupsListScreen() {
   const navigation = useNavigation<GroupsListScreenNavigationProp>();
   const { user } = useAuth();
+  const { setCurrentGroup } = useGroupContext();
   const { data: groups = [], isLoading } = useGroups(user?.id || '');
+
+  // Add back button to header
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerLeft: () => (
+        <View style={styles.backButtonContainer}>
+          <TouchableOpacity
+            onPress={() => {
+              // Reset navigation stack to Dashboard only to prevent back button from showing
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'Dashboard' as never }],
+              });
+            }}
+            style={styles.backButton}
+          >
+            <Ionicons name="arrow-back" size={24} color="#ffffff" />
+          </TouchableOpacity>
+        </View>
+      ),
+    });
+  }, [navigation]);
 
   const handleCreateGroup = () => {
     navigation.navigate('CreateGroup');
   };
 
   const handleGroupPress = (group: FamilyGroup) => {
-    navigation.navigate('GroupDashboard', {
-      groupId: group.id,
-      groupName: group.name,
+    // Set group context and reset navigation stack to Dashboard only
+    // This prevents back button from showing, making it feel like the same screen
+    setCurrentGroup(group.id, group.name);
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'Dashboard' as never }],
     });
   };
 
@@ -195,6 +222,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 8,
+  },
+  backButtonContainer: {
+    marginLeft: 8,
+    paddingRight: 16, // Add spacing between back icon and "Groups" text
+  },
+  backButton: {
+    padding: 8,
   },
 });
 

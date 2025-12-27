@@ -8,7 +8,7 @@ export type HomeStackParamList = {
   Profile: undefined;
   GroupsList: undefined;
   CreateGroup: { groupId?: string; groupName?: string } | undefined;
-  GroupDashboard: { groupId: string; groupName: string };
+  GroupDetails: undefined;
   
   // Notifications
   Notifications: undefined;
@@ -51,6 +51,7 @@ export type RootStackParamList = {
   // Main Stack
   Dashboard: undefined;
   Transactions: undefined;
+  TransactionsList: undefined;
   TransactionsTable: undefined;
   UploadStatement: undefined;
   ManualTransaction: { transaction?: TransactionWithCategory } | undefined;
@@ -60,7 +61,7 @@ export type RootStackParamList = {
   // Groups Stack
   GroupsList: undefined;
   CreateGroup: { groupId?: string; groupName?: string } | undefined;
-  GroupDashboard: { groupId: string; groupName: string };
+  GroupDetails: undefined;
   
   // Notifications
   Notifications: undefined;

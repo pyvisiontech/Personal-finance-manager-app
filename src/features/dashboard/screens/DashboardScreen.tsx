@@ -23,8 +23,11 @@ import { ViewModeToggle } from '../components/ViewModeToggle';
 // Hooks
 import { useAuth } from '../../../context/AuthContext';
 import { useFilter } from '../../../context/FilterContext';
+import { useGroupContext } from '../../../context/GroupContext';
 import { useTransactions } from '../../transactions/hooks/useTransactions';
+import { useGroupTransactions } from '../../groups/hooks/useGroupTransactions';
 import { useGroups } from '../../groups/hooks/useGroups';
+import { Ionicons } from '@expo/vector-icons';
 
 type RootStackParamList = {
   Dashboard: undefined;
@@ -140,9 +143,33 @@ export default function DashboardScreen() {
   const navigation = useNavigation<any>(); // Using any as a temporary measure
   const { user, authReady } = useAuth();
   const { filterPeriod, currentDate, updateFilter } = useFilter();
+  const { currentGroupId, currentGroupName, clearCurrentGroup } = useGroupContext();
+  const hasGroupContext = !!currentGroupId;
   const [viewMode, setViewMode] = useState<'expense' | 'income' | 'total'>('expense');
   const [dashboardMode, setDashboardMode] = useState<'me' | 'groups'>('me');
   const { data: groups = [] } = useGroups(user?.id || '');
+
+  // Sync dashboardMode with group context
+  useEffect(() => {
+    if (hasGroupContext) {
+      setDashboardMode('groups');
+    } else {
+      setDashboardMode('me');
+    }
+  }, [hasGroupContext]);
+
+  // Handle mode change - update toggle immediately and manage group context
+  const handleModeChange = useCallback((mode: 'me' | 'groups') => {
+    // Update toggle state immediately for responsive UI
+    setDashboardMode(mode);
+    if (mode === 'me') {
+      // Clear group context when switching to "Me"
+      clearCurrentGroup();
+    } else if (mode === 'groups') {
+      // Replace current screen with GroupsList to avoid back button
+      navigation.replace('GroupsList' as never);
+    }
+  }, [clearCurrentGroup, navigation]);
 
 
   const handleFilterChange = useCallback((period: FilterPeriod) => {
@@ -161,18 +188,16 @@ export default function DashboardScreen() {
 
   useLayoutEffect(() => {
     // Add toggle, notification bell and profile icon to header
+    // Hide back button when Dashboard is the root screen (not in group context)
     navigation.setOptions({
       headerTitle: () => (
         <View style={styles.headerTitleContainer}>
-          <Text style={styles.headerTitle}>Dashboard</Text>
+          <Text style={styles.headerTitle}>
+            {hasGroupContext && currentGroupName ? currentGroupName : 'Dashboard'}
+          </Text>
           <ViewModeToggle
             selectedMode={dashboardMode}
-            onModeChange={(mode) => {
-              setDashboardMode(mode);
-              if (mode === 'groups') {
-                navigation.navigate('GroupsList' as never);
-              }
-            }}
+            onModeChange={handleModeChange}
           />
         </View>
       ),
@@ -181,6 +206,7 @@ export default function DashboardScreen() {
         alignItems: 'center',
         flex: 1,
       },
+      headerLeft: !hasGroupContext ? () => null : undefined, // Hide back button when not in group context
       headerRight: () => (
         <View style={styles.headerRight}>
           <NotificationIcon />
@@ -188,7 +214,7 @@ export default function DashboardScreen() {
         </View>
       ),
     });
-  }, [navigation, dashboardMode]);
+  }, [navigation, dashboardMode, handleModeChange, hasGroupContext, currentGroupName]);
 
 
 
@@ -290,77 +316,105 @@ export default function DashboardScreen() {
     };
   }, [filterPeriod, currentDate]);
 
-  // Use React Query hook for transactions - data is cached and only refetches when invalidated
-  const { data: transactions = [], isLoading, isFetching } = useTransactions(
+  // Use group transactions if in group context, otherwise use personal transactions
+  const { data: groupTransactions = [], isLoading: isLoadingGroup, isFetching: isFetchingGroup } = useGroupTransactions(
+    (hasGroupContext && currentGroupId) ? currentGroupId : '',
+    { startDate, endDate }
+  );
+
+  const { data: personalTransactions = [], isLoading: isLoadingPersonal, isFetching: isFetchingPersonal } = useTransactions(
     user?.id || '',
     { startDate, endDate }
   );
 
+  // Select appropriate data based on group context
+  const transactions = hasGroupContext ? groupTransactions : personalTransactions;
+  const isLoading = hasGroupContext ? isLoadingGroup : isLoadingPersonal;
+  const isFetching = hasGroupContext ? isFetchingGroup : isFetchingPersonal;
+
   // Previous period transactions for Total comparison
-  const { data: previousTransactions = [] } = useTransactions(
+  const { data: previousGroupTransactions = [] } = useGroupTransactions(
+    (hasGroupContext && currentGroupId) ? currentGroupId : '',
+    { startDate: prevStartDate, endDate: prevEndDate }
+  );
+
+  const { data: previousPersonalTransactions = [] } = useTransactions(
     user?.id || '',
     { startDate: prevStartDate, endDate: prevEndDate }
   );
 
+  // Select appropriate previous period data based on group context
+  const previousTransactions = hasGroupContext ? previousGroupTransactions : previousPersonalTransactions;
+
+  // ============================================================================
+  // TEMPORARILY DISABLED: Deduplication logic (backend now handles duplicates)
+  // ============================================================================
+  // Commented out for testing - backend deduplication + database constraint should prevent duplicates
+  // If issues occur, uncomment this code to re-enable frontend deduplication
+  // ============================================================================
   // Remove duplicate transactions based on key fields (same logic as TransactionsListScreen)
-  const deduplicatedTransactions = useMemo(() => {
-    if (!transactions || transactions.length === 0) return [];
-    
-    // Create a map to track unique transactions
-    const seen = new Map<string, TransactionWithCategory>();
-    let duplicateCount = 0;
-    
-    transactions.forEach((transaction) => {
-      // Create a unique key based on: user_id, amount, occurred_at (date only), and raw_description
-      // This helps identify duplicates even if they have different IDs
-      const dateKey = moment(transaction.occurred_at).format('YYYY-MM-DD');
-      // Normalize description to handle slight variations (trim, lowercase for comparison)
-      const normalizedDescription = (transaction.raw_description || '').trim().toLowerCase();
-      const uniqueKey = `${transaction.user_id}_${transaction.amount}_${dateKey}_${normalizedDescription}`;
-      
-      // If we haven't seen this transaction before, or if this one has a more recent created_at
-      if (!seen.has(uniqueKey)) {
-        seen.set(uniqueKey, transaction);
-      } else {
-        // If duplicate found, keep the one with the most recent created_at
-        duplicateCount++;
-        const existing = seen.get(uniqueKey)!;
-        if (moment(transaction.created_at).isAfter(moment(existing.created_at))) {
-          seen.set(uniqueKey, transaction);
-        }
-      }
-    });
-    
-    if (duplicateCount > 0) {
-      console.log(`⚠️ Dashboard: Removed ${duplicateCount} duplicate transaction(s)`);
-    }
-    
-    return Array.from(seen.values());
-  }, [transactions]);
+  // const deduplicatedTransactions = useMemo(() => {
+  //   if (!transactions || transactions.length === 0) return [];
+  //   
+  //   // Create a map to track unique transactions
+  //   const seen = new Map<string, TransactionWithCategory>();
+  //   let duplicateCount = 0;
+  //   
+  //   transactions.forEach((transaction) => {
+  //     // Create a unique key based on: user_id, amount, occurred_at (date only), and raw_description
+  //     // This helps identify duplicates even if they have different IDs
+  //     const dateKey = moment(transaction.occurred_at).format('YYYY-MM-DD');
+  //     // Normalize description to handle slight variations (trim, lowercase for comparison)
+  //     const normalizedDescription = (transaction.raw_description || '').trim().toLowerCase();
+  //     const uniqueKey = `${transaction.user_id}_${transaction.amount}_${dateKey}_${normalizedDescription}`;
+  //     
+  //     // If we haven't seen this transaction before, or if this one has a more recent created_at
+  //     if (!seen.has(uniqueKey)) {
+  //       seen.set(uniqueKey, transaction);
+  //     } else {
+  //       // If duplicate found, keep the one with the most recent created_at
+  //       duplicateCount++;
+  //       const existing = seen.get(uniqueKey)!;
+  //       if (moment(transaction.created_at).isAfter(moment(existing.created_at))) {
+  //         seen.set(uniqueKey, transaction);
+  //       }
+  //     }
+  //   });
+  //   
+  //   if (duplicateCount > 0) {
+  //     console.log(`⚠️ Dashboard: Removed ${duplicateCount} duplicate transaction(s)`);
+  //   }
+  //   
+  //   return Array.from(seen.values());
+  // }, [transactions]);
 
   // Remove duplicates from previous period transactions as well
-  const deduplicatedPreviousTransactions = useMemo(() => {
-    if (!previousTransactions || previousTransactions.length === 0) return [];
-    
-    const seen = new Map<string, TransactionWithCategory>();
-    
-    previousTransactions.forEach((transaction) => {
-      const dateKey = moment(transaction.occurred_at).format('YYYY-MM-DD');
-      const normalizedDescription = (transaction.raw_description || '').trim().toLowerCase();
-      const uniqueKey = `${transaction.user_id}_${transaction.amount}_${dateKey}_${normalizedDescription}`;
-      
-      if (!seen.has(uniqueKey)) {
-        seen.set(uniqueKey, transaction);
-      } else {
-        const existing = seen.get(uniqueKey)!;
-        if (moment(transaction.created_at).isAfter(moment(existing.created_at))) {
-          seen.set(uniqueKey, transaction);
-        }
-      }
-    });
-    
-    return Array.from(seen.values());
-  }, [previousTransactions]);
+  // const deduplicatedPreviousTransactions = useMemo(() => {
+  //   if (!previousTransactions || previousTransactions.length === 0) return [];
+  //   
+  //   const seen = new Map<string, TransactionWithCategory>();
+  //   
+  //   previousTransactions.forEach((transaction) => {
+  //     const dateKey = moment(transaction.occurred_at).format('YYYY-MM-DD');
+  //     const normalizedDescription = (transaction.raw_description || '').trim().toLowerCase();
+  //     const uniqueKey = `${transaction.user_id}_${transaction.amount}_${dateKey}_${normalizedDescription}`;
+  //     
+  //     if (!seen.has(uniqueKey)) {
+  //       seen.set(uniqueKey, transaction);
+  //     } else {
+  //       const existing = seen.get(uniqueKey)!;
+  //       if (moment(transaction.created_at).isAfter(moment(existing.created_at))) {
+  //         seen.set(uniqueKey, transaction);
+  //       }
+  //     }
+  //   });
+  //   
+  //   return Array.from(seen.values());
+  // }, [previousTransactions]);
+  
+  // Use transactions directly (backend should prevent duplicates)
+  const deduplicatedTransactions = transactions;
+  const deduplicatedPreviousTransactions = previousTransactions;
 
   // Process transactions data for the UI (using deduplicated transactions)
   const processed = useMemo(() => {
@@ -554,8 +608,6 @@ export default function DashboardScreen() {
       </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-
-
         {/* Overview Section */}
         <View style={styles.sectionContainer}>
           <Text style={styles.sectionTitle}>

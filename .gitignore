@@ -60,6 +60,7 @@ Thumbs.db
 
 # Documentation/Review files
 *.md
+*.sql
 
 # Testing
 /coverage/

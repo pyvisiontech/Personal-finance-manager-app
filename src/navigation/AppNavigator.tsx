@@ -16,7 +16,7 @@ import { StatementsListScreen } from '../features/statements/screens/StatementsL
 import { ProfileScreen } from '../features/profile/screens/ProfileScreen';
 import { GroupsListScreen } from '../features/groups/screens/GroupsListScreen';
 import { CreateGroupScreen } from '../features/groups/screens/CreateGroupScreen';
-import { GroupDashboardScreen } from '../features/groups/screens/GroupDashboardScreen';
+import { GroupDetailsScreen } from '../features/groups/screens/GroupDetailsScreen';
 import { NotificationsScreen } from '../features/notifications/screens/NotificationsScreen';
 import { View, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -27,6 +27,7 @@ const RootStack = createNativeStackNavigator<RootStackParamList>();
 const HomeStack = createNativeStackNavigator<HomeStackParamList>();
 const TransactionsStack = createNativeStackNavigator<TransactionsStackParamList>();
 const StatementsStack = createNativeStackNavigator<StatementsStackParamList>();
+const GroupDetailsStack = createNativeStackNavigator<HomeStackParamList>();
 const OnboardingStack = createNativeStackNavigator<OnboardingStackParamList>();
 const Tab = createBottomTabNavigator();
 
@@ -76,11 +77,9 @@ function HomeStackNavigator() {
         })}
       />
       <HomeStack.Screen
-        name="GroupDashboard"
-        component={GroupDashboardScreen}
-        options={({ route }: { route: RouteProp<HomeStackParamList, 'GroupDashboard'> }) => ({
-          title: route.params?.groupName || 'Group Dashboard',
-        })}
+        name="GroupDetails"
+        component={GroupDetailsScreen}
+        options={{ title: 'Group Details' }}
       />
       <HomeStack.Screen
         name="Notifications"
@@ -149,6 +148,31 @@ function StatementsStackNavigator() {
   );
 }
 
+function GroupDetailsStackNavigator() {
+  return (
+    <GroupDetailsStack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: '#007a33' },
+        headerTintColor: '#fff',
+        headerTitleStyle: { fontWeight: '600' },
+      }}
+    >
+      <GroupDetailsStack.Screen
+        name="GroupDetails"
+        component={GroupDetailsScreen}
+        options={{ title: 'Group Details' }}
+      />
+      <GroupDetailsStack.Screen
+        name="CreateGroup"
+        component={CreateGroupScreen}
+        options={({ route }: { route: RouteProp<HomeStackParamList, 'CreateGroup'> }) => ({
+          title: route.params?.groupName ? 'Invite Member' : 'Create Group',
+        })}
+      />
+    </GroupDetailsStack.Navigator>
+  );
+}
+
 function MainTabs() {
   return (
     <Tab.Navigator
@@ -196,6 +220,16 @@ function MainTabs() {
           tabBarLabel: 'Statements',
           tabBarIcon: ({ color, size, focused }: { color: string; size: number; focused: boolean }) => (
             <Ionicons name={focused ? "document-text" : "document-text-outline"} color={color} size={size} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="GroupDetailsTab"
+        component={GroupDetailsStackNavigator}
+        options={{
+          tabBarLabel: 'Group Details',
+          tabBarIcon: ({ color, size, focused }: { color: string; size: number; focused: boolean }) => (
+            <Ionicons name={focused ? "people" : "people-outline"} color={color} size={size} />
           ),
         }}
       />

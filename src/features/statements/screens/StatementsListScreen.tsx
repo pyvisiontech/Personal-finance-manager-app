@@ -1,10 +1,12 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useLayoutEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, RefreshControl, StyleSheet, StatusBar, Platform, ActivityIndicator, Alert } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useStatements } from '../hooks/useStatements';
+import { useGroupStatements } from '../../groups/hooks/useGroupStatements';
 import { useAuth } from '../../../context/AuthContext';
+import { useGroupContext } from '../../../context/GroupContext';
 import { StatementImport, StatementStatus } from '../../../lib/types';
 import { RootStackParamList } from '../../../navigation/types';
 import { supabase } from '../../../lib/supabase';
@@ -16,12 +18,48 @@ const STATUS_BAR_HEIGHT = Platform.OS === 'ios' ? 50 : (StatusBar.currentHeight 
 
 export function StatementsListScreen() {
   const { user } = useAuth();
+  const { currentGroupId, currentGroupName, hasGroupContext } = useGroupContext();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { data: statements = [], isLoading, error, refetch } = useStatements(user?.id || '');
+
+  // Use group statements if in group context, otherwise use personal statements
+  const { data: groupStatements = [], isLoading: isLoadingGroup, error: groupError, refetch: refetchGroup } = useGroupStatements(
+    (hasGroupContext && currentGroupId) ? currentGroupId : ''
+  );
+
+  const { data: personalStatements = [], isLoading: isLoadingPersonal, error: personalError, refetch: refetchPersonal } = useStatements(user?.id || '');
+
+  // Select appropriate data based on group context
+  const statements = hasGroupContext ? groupStatements : personalStatements;
+  const isLoading = hasGroupContext ? isLoadingGroup : isLoadingPersonal;
+  const error = hasGroupContext ? groupError : personalError;
+  const refetch = hasGroupContext ? refetchGroup : refetchPersonal;
+
   const [refreshing, setRefreshing] = useState(false);
   const [checkingStatus, setCheckingStatus] = useState<string | null>(null);
   const [reprocessing, setReprocessing] = useState<string | null>(null);
   const [downloading, setDownloading] = useState<string | null>(null);
+
+  // Ensure tab bar is visible on Statements screen
+  useLayoutEffect(() => {
+    const parent = navigation.getParent();
+    if (parent) {
+      parent.setOptions({
+        tabBarStyle: {
+          backgroundColor: '#f4f1e3',
+          borderTopColor: '#d8d2b8',
+          height: 68,
+          paddingBottom: 10,
+          paddingTop: 8,
+          marginBottom: 8,
+          borderTopLeftRadius: 0,
+          borderTopRightRadius: 0,
+          display: 'flex',
+        },
+      });
+    }
+  }, [navigation]);
+
+  // Update header title - not needed since we're using custom header
 
   useFocusEffect(
     useCallback(() => {
@@ -434,7 +472,11 @@ export function StatementsListScreen() {
       <View style={styles.container}>
         <StatusBar barStyle="light-content" backgroundColor="#007a33" />
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Statements</Text>
+          <View style={styles.headerTitleContainer}>
+            <Text style={styles.headerTitle}>
+              {hasGroupContext && currentGroupName ? currentGroupName : 'Statements'}
+            </Text>
+          </View>
         </View>
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>Loading statements...</Text>
@@ -449,7 +491,11 @@ export function StatementsListScreen() {
       <View style={styles.container}>
         <StatusBar barStyle="light-content" backgroundColor="#007a33" />
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Statements</Text>
+          <View style={styles.headerTitleContainer}>
+            <Text style={styles.headerTitle}>
+              {hasGroupContext && currentGroupName ? currentGroupName : 'Statements'}
+            </Text>
+          </View>
         </View>
         <View style={styles.errorContainer}>
           <Text style={styles.errorTitle}>Error loading statements</Text>
@@ -471,7 +517,11 @@ export function StatementsListScreen() {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#007a33" />
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Statements</Text>
+        <View style={styles.headerTitleContainer}>
+          <Text style={styles.headerTitle}>
+            {hasGroupContext && currentGroupName ? currentGroupName : 'Statements'}
+          </Text>
+        </View>
         <View style={styles.headerButtons}>
           <TouchableOpacity
             style={styles.headerIconButton}
@@ -530,10 +580,16 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     backgroundColor: '#007a33',
   },
+  headerTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
     color: '#fff',
+    marginRight: 12,
   },
   headerButtons: {
     flexDirection: 'row',

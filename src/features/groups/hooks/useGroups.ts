@@ -143,3 +143,29 @@ export function useGroupMembers(groupId: string) {
   });
 }
 
+export function useRemoveGroupMember() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ memberId, groupId }: { memberId: string; groupId: string }) => {
+      const { error } = await supabase
+        .from('group_members')
+        .delete()
+        .eq('id', memberId);
+
+      if (error) {
+        console.error('Error removing group member:', error);
+        throw error;
+      }
+
+      return { memberId, groupId };
+    },
+    onSuccess: (_, variables) => {
+      // Invalidate group members query
+      queryClient.invalidateQueries({ queryKey: ['groupMembers', variables.groupId] });
+      // Also invalidate groups list
+      queryClient.invalidateQueries({ queryKey: ['groups'] });
+    },
+  });
+}
+
