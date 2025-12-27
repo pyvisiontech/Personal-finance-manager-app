@@ -5,8 +5,10 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useQueryClient } from '@tanstack/react-query';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useTransactions } from '../hooks/useTransactions';
+import { useGroupTransactions } from '../../groups/hooks/useGroupTransactions';
 import { useAuth } from '../../../context/AuthContext';
 import { useFilter } from '../../../context/FilterContext';
+import { useGroupContext } from '../../../context/GroupContext';
 import { TransactionWithCategory } from '../../../lib/types';
 import { FilterMenu, FilterPeriod } from '../../dashboard/components/FilterMenu';
 import { DateNavigator } from '../../dashboard/components/DateNavigator';
@@ -26,6 +28,7 @@ interface DateGroup {
 
 export function TransactionsListScreen() {
   const { user } = useAuth();
+  const { currentGroupId, currentGroupName, hasGroupContext } = useGroupContext();
   const { filterPeriod: dashboardFilterPeriod, currentDate: dashboardCurrentDate } = useFilter();
   const [refreshing, setRefreshing] = useState(false);
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -39,8 +42,10 @@ export function TransactionsListScreen() {
   const [isSortMenuVisible, setIsSortMenuVisible] = useState(false);
 
   // Add notification bell and profile menu to header
+  // Show group name when in group context, otherwise show "Transactions"
   useLayoutEffect(() => {
     navigation.setOptions({
+      headerTitle: hasGroupContext && currentGroupName ? currentGroupName : 'Transactions',
       headerRight: () => (
         <View style={styles.headerRight}>
           <NotificationIcon />
@@ -48,7 +53,7 @@ export function TransactionsListScreen() {
         </View>
       ),
     });
-  }, [navigation]);
+  }, [navigation, hasGroupContext, currentGroupName]);
 
   // Sync with Dashboard filter when it changes (only if user hasn't overridden locally)
   useEffect(() => {
@@ -108,48 +113,78 @@ export function TransactionsListScreen() {
     }
   }, [filterPeriod, currentDate]);
 
-  const { data: transactions = [], isLoading, error, refetch } = useTransactions(
+  // Use group transactions if in group context, otherwise use personal transactions
+  const { data: groupTransactions = [], isLoading: isLoadingGroup, error: groupError, refetch: refetchGroup } = useGroupTransactions(
+    (hasGroupContext && currentGroupId) ? currentGroupId : '',
+    { startDate, endDate }
+  );
+
+  const { data: personalTransactions = [], isLoading: isLoadingPersonal, error: personalError, refetch: refetchPersonal } = useTransactions(
     user?.id || '',
     { startDate, endDate }
   );
 
+  // Select appropriate data based on group context
+  const transactions = hasGroupContext ? groupTransactions : personalTransactions;
+  const isLoading = hasGroupContext ? isLoadingGroup : isLoadingPersonal;
+  const error = hasGroupContext ? groupError : personalError;
+  const refetch = hasGroupContext ? refetchGroup : refetchPersonal;
+
+  // ============================================================================
+  // TEMPORARILY DISABLED: Deduplication logic (backend now handles duplicates)
+  // ============================================================================
+  // Commented out for testing - backend deduplication + database constraint should prevent duplicates
+  // If issues occur, uncomment this code to re-enable frontend deduplication
+  // ============================================================================
   // Remove duplicate transactions based on key fields (same logic as DashboardScreen)
-  const deduplicatedTransactions = useMemo(() => {
-    if (!transactions || transactions.length === 0) return [];
-    
-    // Create a map to track unique transactions
-    const seen = new Map<string, TransactionWithCategory>();
-    let duplicateCount = 0;
-    
-    transactions.forEach((transaction) => {
-      // Create a unique key based on: user_id, amount, occurred_at (date only), and raw_description
-      // This helps identify duplicates even if they have different IDs
-      const dateKey = moment(transaction.occurred_at).format('YYYY-MM-DD');
-      // Normalize description to handle slight variations (trim, lowercase for comparison)
-      const normalizedDescription = (transaction.raw_description || '').trim().toLowerCase();
-      const uniqueKey = `${transaction.user_id}_${transaction.amount}_${dateKey}_${normalizedDescription}`;
-      
-      // If we haven't seen this transaction before, or if this one has a more recent created_at
-      if (!seen.has(uniqueKey)) {
-        seen.set(uniqueKey, transaction);
-      } else {
-        // If duplicate found, keep the one with the most recent created_at
-        duplicateCount++;
-        const existing = seen.get(uniqueKey)!;
-        if (moment(transaction.created_at).isAfter(moment(existing.created_at))) {
-          seen.set(uniqueKey, transaction);
-        }
-      }
-    });
-    
-    if (duplicateCount > 0) {
-      console.log(`⚠️ TransactionsList: Removed ${duplicateCount} duplicate transaction(s)`);
-    }
-    
-    return Array.from(seen.values());
-  }, [transactions]);
+  // const deduplicatedTransactions = useMemo(() => {
+  //   if (!transactions || transactions.length === 0) return [];
+  //   
+  //   // Create a map to track unique transactions
+  //   const seen = new Map<string, TransactionWithCategory>();
+  //   let duplicateCount = 0;
+  //   
+  //   transactions.forEach((transaction) => {
+  //     // Create a unique key based on: user_id, amount, occurred_at (date only), and raw_description
+  //     // This helps identify duplicates even if they have different IDs
+  //     const dateKey = moment(transaction.occurred_at).format('YYYY-MM-DD');
+  //     // Normalize description to handle slight variations (trim, lowercase for comparison)
+  //     const normalizedDescription = (transaction.raw_description || '').trim().toLowerCase();
+  //     const uniqueKey = `${transaction.user_id}_${transaction.amount}_${dateKey}_${normalizedDescription}`;
+  //     
+  //     // If we haven't seen this transaction before, or if this one has a more recent created_at
+  //     if (!seen.has(uniqueKey)) {
+  //       seen.set(uniqueKey, transaction);
+  //     } else {
+  //       // If duplicate found, keep the one with the most recent created_at
+  //       duplicateCount++;
+  //       const existing = seen.get(uniqueKey)!;
+  //       if (moment(transaction.created_at).isAfter(moment(existing.created_at))) {
+  //         seen.set(uniqueKey, transaction);
+  //       }
+  //     }
+  //   });
+  //   
+  //   if (duplicateCount > 0) {
+  //     console.log(`⚠️ TransactionsList: Removed ${duplicateCount} duplicate transaction(s)`);
+  //   }
+  //   
+  //   return Array.from(seen.values());
+  // }, [transactions]);
+  
+  // Use transactions directly (backend should prevent duplicates)
+  const deduplicatedTransactions = transactions;
 
   const handleEditTransaction = (transaction: TransactionWithCategory) => {
+    console.log('🔍 [DEBUG] handleEditTransaction called from TransactionsListScreen:', {
+      transactionId: transaction.id,
+      transactionIdType: typeof transaction.id,
+      transactionSource: transaction.source,
+      transactionUserId: transaction.user_id,
+      hasCategoryUser: !!transaction.category_user_id,
+      hasCategoryAi: !!transaction.category_ai_id,
+      fullTransaction: JSON.stringify(transaction, null, 2),
+    });
     navigation.navigate('ManualTransaction', { transaction });
   };
 

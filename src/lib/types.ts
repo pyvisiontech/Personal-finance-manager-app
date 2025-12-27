@@ -120,3 +120,57 @@ export interface UploadStatementResponse {
   message: string;
 }
 
+// Family Groups Types
+export interface FamilyGroup {
+  id: string;
+  name: string;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GroupMember {
+  id: string;
+  group_id: string;
+  user_id: string;
+  joined_at: string;
+  user?: {
+    id: string;
+    email: string | null;
+    first_name: string | null;
+    last_name: string | null;
+  };
+}
+
+export interface GroupInvite {
+  id: string;
+  group_id: string;
+  invited_by: string;
+  invite_token: string;
+  invitee_email: string;
+  invitee_name: string | null;
+  status: 'pending' | 'accepted' | 'rejected' | 'expired';
+  expires_at: string | null;
+  accepted_at: string | null;
+  created_at: string;
+  group?: FamilyGroup;
+}
+
+export interface Notification {
+  id: string;
+  user_id: string;
+  type: 'group_invite' | 'group_joined' | 'transaction_added' | 'other';
+  title: string;
+  message: string;
+  data: {
+    group_id?: string;
+    invite_id?: string;
+    invite_token?: string;
+    [key: string]: any;
+  } | null;
+  status: 'unread' | 'read' | 'dismissed';
+  created_at: string;
+  read_at: string | null;
+  dismissed_at: string | null;
+}
+

@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './src/context/AuthContext';
 import { FilterProvider } from './src/context/FilterContext';
 import { NotificationProvider } from './src/context/NotificationContext';
+import { GroupProvider } from './src/context/GroupContext';
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { cssInterop } from 'nativewind';
 import { 
@@ -51,8 +52,10 @@ export default function App() {
       <AuthProvider>
         <FilterProvider>
           <NotificationProvider>
-            <AppNavigator />
-            <StatusBar style="auto" />
+            <GroupProvider>
+              <AppNavigator />
+              <StatusBar style="auto" />
+            </GroupProvider>
           </NotificationProvider>
         </FilterProvider>
       </AuthProvider>

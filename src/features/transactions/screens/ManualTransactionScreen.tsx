@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -24,6 +24,8 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import moment from 'moment';
 import { Platform } from 'react-native';
 import { TransactionWithCategory } from '../../../lib/types';
+import { useAuth } from '../../../context/AuthContext';
+import { useGroupContext } from '../../../context/GroupContext';
 
 const windowWidth = Dimensions.get('window').width;
 
@@ -204,8 +206,51 @@ const ManualTransactionScreen = () => {
   const existingTransaction = route.params?.transaction as TransactionWithCategory | undefined;
   const isEditing = !!existingTransaction;
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const { currentGroupId, hasGroupContext } = useGroupContext();
   const [amount, setAmount] = useState('0');
   const [showCalculator, setShowCalculator] = useState(false);
+  
+  // Determine where to navigate back to
+  // If editing, we came from TransactionsListScreen
+  // If creating new, check if we can go back in the current stack
+  const getReturnScreen = useCallback(() => {
+    if (isEditing) {
+      // If editing, always return to TransactionsListScreen
+      return 'TransactionsList';
+    }
+    
+    // If creating new, check if we can go back in the TransactionsStack
+    // If we can't go back, we likely came from Dashboard via FAB
+    try {
+      const canGoBack = navigation.canGoBack();
+      if (!canGoBack) {
+        // Can't go back, so we came from Dashboard via FAB
+        return 'Dashboard';
+      }
+      
+      // Check the navigation state to see stack depth
+      const state = navigation.getState();
+      if (state && state.routes) {
+        // Check if we're the first screen in the TransactionsStack
+        // This would indicate we came from Dashboard via FAB
+        const currentRoute = state.routes[state.index];
+        if (currentRoute && (currentRoute as any).state) {
+          const stackState = (currentRoute as any).state;
+          // If ManualTransaction is the only screen in the stack, we came from Dashboard
+          if (stackState.index === 0 && stackState.routes && stackState.routes.length === 1) {
+            return 'Dashboard';
+          }
+        }
+      }
+    } catch (error) {
+      // If we can't determine, default to TransactionsList
+      console.log('Error checking navigation state:', error);
+    }
+    
+    // Default: return to TransactionsListScreen
+    return 'TransactionsList';
+  }, [isEditing, navigation]);
 
   // Hide tab bar when this screen is focused
   useLayoutEffect(() => {
@@ -248,12 +293,23 @@ const ManualTransactionScreen = () => {
 
   useEffect(() => {
     if (existingTransaction) {
-      console.log('📝 Editing transaction:', {
+      console.log('🔍 [DEBUG] Transaction received in ManualTransactionScreen:', {
         id: existingTransaction.id,
+        idType: typeof existingTransaction.id,
+        idExists: !!existingTransaction.id,
         amount: existingTransaction.amount,
         type: existingTransaction.type,
+        source: existingTransaction.source,
         hasCategoryUser: !!existingTransaction.category_user_id,
         hasCategoryAi: !!existingTransaction.category_ai_id,
+        category_user_id: existingTransaction.category_user_id,
+        category_ai_id: existingTransaction.category_ai_id,
+        user_id: existingTransaction.user_id,
+        raw_description: existingTransaction.raw_description,
+        merchant: existingTransaction.merchant,
+        occurred_at: existingTransaction.occurred_at,
+        created_at: existingTransaction.created_at,
+        fullObject: JSON.stringify(existingTransaction, null, 2),
       });
       
       setAmount(Math.abs(existingTransaction.amount).toString());
@@ -281,7 +337,7 @@ const ManualTransactionScreen = () => {
         });
       }
     } else {
-      console.log('➕ Creating new transaction (not editing)');
+      console.log('➕ [DEBUG] Creating new transaction (not editing) - existingTransaction is:', existingTransaction);
     }
   }, [existingTransaction]);
 
@@ -319,6 +375,15 @@ const ManualTransactionScreen = () => {
   /* evaluateExpression is now at module level */
 
   const handleSave = async () => {
+    console.log('🔍 [DEBUG] handleSave called:', {
+      isEditing,
+      hasExistingTransaction: !!existingTransaction,
+      existingTransactionId: existingTransaction?.id,
+      existingTransactionSource: existingTransaction?.source,
+      hasSelectedCategory: !!selectedCategory,
+      selectedCategoryId: selectedCategory?.id,
+    });
+
     if (!selectedCategory) {
       Alert.alert('Error', 'Please select a category');
       return;
@@ -334,7 +399,12 @@ const ManualTransactionScreen = () => {
     // Validate that we have transaction ID when editing
     if (isEditing && (!existingTransaction || !existingTransaction.id)) {
       Alert.alert('Error', 'Cannot edit: Transaction ID is missing');
-      console.error('❌ Edit attempt without transaction ID:', { isEditing, existingTransaction });
+      console.error('❌ [DEBUG] Edit attempt without transaction ID:', { 
+        isEditing, 
+        existingTransaction,
+        existingTransactionId: existingTransaction?.id,
+        existingTransactionKeys: existingTransaction ? Object.keys(existingTransaction) : [],
+      });
       return;
     }
 
@@ -381,6 +451,17 @@ const ManualTransactionScreen = () => {
         occurred_at: occurredAt, // Use formatted date string
       };
 
+      console.log('🔍 [DEBUG] Condition check before UPDATE/INSERT:', {
+        isEditing,
+        hasExistingTransaction: !!existingTransaction,
+        hasExistingTransactionId: !!(existingTransaction && existingTransaction.id),
+        existingTransactionId: existingTransaction?.id,
+        existingTransactionSource: existingTransaction?.source,
+        conditionResult: isEditing && existingTransaction && existingTransaction.id,
+        willUpdate: !!(isEditing && existingTransaction && existingTransaction.id),
+        willInsert: !(isEditing && existingTransaction && existingTransaction.id),
+      });
+
       if (isEditing && existingTransaction && existingTransaction.id) {
         // When editing, UPDATE the existing transaction with the same UUID
         // Preserve category_ai_id if it exists (don't set to null)
@@ -399,8 +480,14 @@ const ManualTransactionScreen = () => {
           occurred_at: occurredAt,
         };
         
-        console.log('📤 Updating transaction:', {
+        console.log('🔍 [DEBUG] ========== UPDATE PATH ==========');
+        console.log('📤 [DEBUG] Updating transaction:', {
           transactionId: existingTransaction.id,
+          transactionIdType: typeof existingTransaction.id,
+          transactionSource: existingTransaction.source,
+          currentUserId: user.id,
+          transactionUserId: existingTransaction.user_id,
+          userIdsMatch: user.id === existingTransaction.user_id,
           oldAmount: existingTransaction.amount,
           newAmount: updatePayload.amount,
           oldCategoryUser: existingTransaction.category_user_id,
@@ -408,7 +495,12 @@ const ManualTransactionScreen = () => {
           newCategoryUser: updatePayload.category_user_id,
           preservingAiCategory: updatePayload.category_ai_id,
         });
-        console.log('📤 Full update payload:', JSON.stringify(updatePayload, null, 2));
+        console.log('📤 [DEBUG] Full update payload:', JSON.stringify(updatePayload, null, 2));
+        console.log('📤 [DEBUG] UPDATE query will use:', {
+          table: 'transactions',
+          filter: `id = '${existingTransaction.id}'`,
+          userIdInPayload: updatePayload.user_id,
+        });
         
         // UPDATE the existing transaction - do NOT create a new one
         const { data: updatedData, error: updateError } = await supabase
@@ -418,22 +510,40 @@ const ManualTransactionScreen = () => {
           .select()
           .single();
         
-        console.log('📥 Update response:', {
+        console.log('📥 [DEBUG] Update response:', {
           hasData: !!updatedData,
           hasError: !!updateError,
+          errorCode: updateError?.code,
+          errorMessage: updateError?.message,
+          errorDetails: updateError?.details,
+          errorHint: updateError?.hint,
+          updatedDataId: updatedData?.id,
           updatedCategoryUser: updatedData?.category_user_id,
           updatedCategoryAi: updatedData?.category_ai_id,
+          updatedSource: updatedData?.source,
+          fullResponse: JSON.stringify({ data: updatedData, error: updateError }, null, 2),
         });
 
         if (updateError) {
-          console.error('❌ Update error:', updateError);
+          console.error('❌ [DEBUG] Update error occurred:', {
+            code: updateError.code,
+            message: updateError.message,
+            details: updateError.details,
+            hint: updateError.hint,
+            fullError: JSON.stringify(updateError, null, 2),
+          });
           Alert.alert('Update Failed', `Failed to update transaction: ${updateError.message}`);
           throw updateError;
         }
         
         if (!updatedData) {
           const errorMsg = 'Transaction update returned no data - transaction may not exist';
-          console.error('❌', errorMsg);
+          console.error('❌ [DEBUG]', errorMsg, {
+            transactionId: existingTransaction.id,
+            userId: user.id,
+            transactionUserId: existingTransaction.user_id,
+            source: existingTransaction.source,
+          });
           Alert.alert('Update Failed', errorMsg);
           throw new Error(errorMsg);
         }
@@ -441,32 +551,47 @@ const ManualTransactionScreen = () => {
         // Verify the updated transaction has the same ID
         if (updatedData.id !== existingTransaction.id) {
           const errorMsg = `Transaction ID mismatch! Expected ${existingTransaction.id}, got ${updatedData.id}`;
-          console.error('❌', errorMsg);
+          console.error('❌ [DEBUG]', errorMsg);
           throw new Error(errorMsg);
         }
         
         // Verify the category_user_id was actually saved
         if (updatedData.category_user_id !== selectedCategory.id) {
           const errorMsg = `Category not saved! Expected ${selectedCategory.id}, got ${updatedData.category_user_id}`;
-          console.error('❌', errorMsg);
+          console.error('❌ [DEBUG]', errorMsg);
           console.error('Update payload was:', updatePayload);
           console.error('Updated data received:', updatedData);
           Alert.alert('Warning', 'Category may not have been saved correctly. Please check Supabase.');
         }
         
-        console.log('✅ Transaction updated successfully:', {
+        console.log('✅ [DEBUG] Transaction updated successfully:', {
           id: updatedData.id,
           category_user_id: updatedData.category_user_id,
           category_ai_id: updatedData.category_ai_id,
           amount: updatedData.amount,
+          source: updatedData.source,
         });
+        console.log('🔍 [DEBUG] ========== UPDATE PATH COMPLETE ==========');
       } else {
         // Only INSERT if we're NOT editing (creating a new transaction)
+        console.log('🔍 [DEBUG] ========== INSERT PATH ==========');
+        console.log('🔍 [DEBUG] Insert path conditions:', {
+          isEditing,
+          hasExistingTransaction: !!existingTransaction,
+          hasExistingTransactionId: !!(existingTransaction && existingTransaction.id),
+          shouldInsert: !(isEditing && existingTransaction && existingTransaction.id),
+        });
+
         if (isEditing) {
-          throw new Error('Cannot edit: Transaction ID is missing');
+          const errorMsg = `Cannot edit: Transaction ID is missing. isEditing=${isEditing}, hasTransaction=${!!existingTransaction}, hasId=${!!(existingTransaction?.id)}`;
+          console.error('❌ [DEBUG]', errorMsg, {
+            existingTransaction: existingTransaction ? JSON.stringify(existingTransaction, null, 2) : null,
+          });
+          throw new Error(errorMsg);
         }
         
-        console.log('Creating new transaction (not editing)');
+        console.log('🔍 [DEBUG] Creating new transaction (not editing)');
+        console.log('🔍 [DEBUG] Insert payload:', JSON.stringify(payload, null, 2));
         const { data: insertedData, error: insertError } = await supabase
           .from('transactions')
           .insert([payload])
@@ -474,22 +599,59 @@ const ManualTransactionScreen = () => {
           .single();
           
         if (insertError) {
-          console.error('❌ Insert error:', insertError);
+          console.error('❌ [DEBUG] Insert error:', {
+            code: insertError.code,
+            message: insertError.message,
+            details: insertError.details,
+            hint: insertError.hint,
+            fullError: JSON.stringify(insertError, null, 2),
+          });
           throw insertError;
         }
         
-        console.log('✅ New transaction created:', insertedData?.id);
+        console.log('✅ [DEBUG] New transaction created:', {
+          id: insertedData?.id,
+          source: insertedData?.source,
+          category_user_id: insertedData?.category_user_id,
+        });
+        console.log('🔍 [DEBUG] ========== INSERT PATH COMPLETE ==========');
       }
 
-      // Invalidate and refetch all transaction queries to ensure fresh data
-      // Wait for the refetch to complete to ensure the UI shows the updated transaction
-      await queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      await queryClient.refetchQueries({ queryKey: ['transactions'] });
+      // Invalidate only the specific transaction queries needed (not all queries)
+      // This prevents refetching unnecessary queries like previous period data
+      // Use the local 'user' variable from supabase.auth.getUser() above
+      if (user?.id) {
+        // Invalidate personal transactions for this user (all filter combinations)
+        queryClient.invalidateQueries({ 
+          queryKey: ['transactions', user.id],
+          exact: false // Match all queries starting with ['transactions', userId]
+        });
+      }
       
-      // Small delay to ensure the database update is fully propagated
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // If in group context, also invalidate group transactions
+      if (hasGroupContext && currentGroupId) {
+        queryClient.invalidateQueries({ 
+          queryKey: ['groupTransactions', currentGroupId],
+          exact: false // Match all queries starting with ['groupTransactions', groupId]
+        });
+      }
       
-      navigation.goBack();
+      // Navigate immediately - React Query will refetch when screens focus
+      // This provides instant feedback instead of waiting 30-40 seconds
+      // Always reset TransactionsStack first to remove ManualTransaction from history
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'TransactionsList' as never }],
+      });
+      
+      // Then navigate to the correct screen based on where we came from
+      const returnScreen = getReturnScreen();
+      if (returnScreen === 'Dashboard') {
+        // Navigate to Dashboard tab after a small delay to ensure stack reset completes
+        setTimeout(() => {
+          navigation.getParent()?.navigate('HomeTab', { screen: 'Dashboard' });
+        }, 100);
+      }
     } catch (error) {
       console.error('Error saving transaction:', error);
       Alert.alert('Error', 'Failed to save transaction. Please try again.');
@@ -526,7 +688,11 @@ const ManualTransactionScreen = () => {
               }
 
               queryClient.invalidateQueries({ queryKey: ['transactions'] });
-              navigation.goBack();
+              // Navigate to TransactionsList and reset stack to prevent reopening
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'TransactionsList' as never }],
+              });
             } catch (error) {
               console.error('Error deleting transaction:', error);
               Alert.alert('Error', 'Failed to delete transaction. Please try again.');
@@ -541,7 +707,22 @@ const ManualTransactionScreen = () => {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity onPress={() => {
+          // Always reset TransactionsStack first to remove ManualTransaction from history
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'TransactionsList' as never }],
+          });
+          
+          // Then navigate to the correct screen based on where we came from
+          const returnScreen = getReturnScreen();
+          if (returnScreen === 'Dashboard') {
+            // Navigate to Dashboard tab after a small delay to ensure stack reset completes
+            setTimeout(() => {
+              navigation.getParent()?.navigate('HomeTab', { screen: 'Dashboard' });
+            }, 100);
+          }
+        }}>
           <Text style={styles.cancelButton}>CANCEL</Text>
         </TouchableOpacity>
         {isEditing ? (
