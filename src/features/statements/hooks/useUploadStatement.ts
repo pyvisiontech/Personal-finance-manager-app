@@ -71,6 +71,16 @@ export function useUploadStatement() {
 
   return useMutation({
     mutationFn: async ({ userId, fileUri, fileName, fileType }: { userId: string; fileUri: string; fileName: string; fileType: string }) => {
+      // Validate file size before uploading (final safety check)
+      const fileInfo = await FileSystem.getInfoAsync(fileUri);
+      if (fileInfo.exists && fileInfo.size !== undefined) {
+        const maxSizeInBytes = 2 * 1024 * 1024; // 2MB in bytes
+        if (fileInfo.size > maxSizeInBytes) {
+          const fileSizeInMB = (fileInfo.size / (1024 * 1024)).toFixed(2);
+          throw new Error(`File size (${fileSizeInMB} MB) exceeds the maximum allowed size of 2 MB. Please select a smaller file.`);
+        }
+      }
+
       // Upload file to Supabase Storage
       const fileExt = fileName.split('.').pop();
       const filePath = `${userId}/${Date.now()}.${fileExt}`;

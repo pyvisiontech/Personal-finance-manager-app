@@ -10,10 +10,12 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import moment from 'moment';
 import { useAuth } from '../../../context/AuthContext';
 import { useGroupContext } from '../../../context/GroupContext';
 import { useGroupMembers, useRemoveGroupMember } from '../hooks/useGroups';
-import { GroupMember } from '../../../lib/types';
+import { useGroupInvites } from '../hooks/useGroupInvites';
+import { GroupMember, GroupInvite } from '../../../lib/types';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../../navigation/types';
 
@@ -24,7 +26,38 @@ export function GroupDetailsScreen() {
   const { user } = useAuth();
   const { currentGroupId, currentGroupName } = useGroupContext();
   const { data: members = [], isLoading } = useGroupMembers(currentGroupId || '');
+  const { data: invites = [], isLoading: isLoadingInvites } = useGroupInvites(currentGroupId || '');
   const removeMemberMutation = useRemoveGroupMember();
+  
+  // Get member emails to check if invitee is already a member
+  const memberEmails = new Set(
+    members.map(member => member.user?.email?.toLowerCase().trim()).filter(Boolean)
+  );
+  
+  // Filter pending invites and exclude those who are already members
+  const pendingInvitesFiltered = invites.filter(invite => {
+    // Only show pending invites
+    if (invite.status !== 'pending') return false;
+    
+    // Exclude if invitee is already a member
+    const inviteeEmail = invite.invitee_email?.toLowerCase().trim();
+    if (inviteeEmail && memberEmails.has(inviteeEmail)) {
+      return false;
+    }
+    
+    return true;
+  });
+  
+  // Remove duplicates by email (keep the most recent one)
+  const uniquePendingInvites = Array.from(
+    new Map(
+      pendingInvitesFiltered
+        .sort((a, b) => moment.utc(b.created_at).valueOf() - moment.utc(a.created_at).valueOf())
+        .map(invite => [invite.invitee_email?.toLowerCase().trim(), invite])
+    ).values()
+  );
+  
+  const pendingInvites = uniquePendingInvites;
 
   // Set header title
   useLayoutEffect(() => {
@@ -97,7 +130,7 @@ export function GroupDetailsScreen() {
     );
   }
 
-  if (isLoading) {
+  if (isLoading || isLoadingInvites) {
     return (
       <View style={styles.container}>
         <View style={styles.loadingContainer}>
@@ -169,7 +202,7 @@ export function GroupDetailsScreen() {
                         <Text style={styles.memberEmail}>{member.user?.email || ''}</Text>
                         {member.joined_at && (
                           <Text style={styles.memberJoined}>
-                            Joined {new Date(member.joined_at).toLocaleDateString()}
+                            Joined {moment.utc(member.joined_at).local().format('M/D/YYYY')}
                           </Text>
                         )}
                       </View>
@@ -204,6 +237,64 @@ export function GroupDetailsScreen() {
             </View>
           )}
         </View>
+
+        {/* Pending Invites Section */}
+        {pendingInvites.length > 0 && (
+          <View style={styles.sectionContainer}>
+            <View style={styles.membersHeader}>
+              <Text style={styles.sectionTitle}>Pending Invites</Text>
+              <View style={styles.pendingBadge}>
+                <Text style={styles.pendingBadgeText}>{pendingInvites.length}</Text>
+              </View>
+            </View>
+
+            <View style={styles.membersList}>
+              {pendingInvites.map((invite, index) => {
+                const inviteeName = invite.invitee_name || invite.invitee_email.split('@')[0];
+                const isExpired = invite.expires_at && moment.utc(invite.expires_at).local().isBefore(moment());
+
+                return (
+                  <View
+                    key={invite.id}
+                    style={[
+                      styles.memberItem,
+                      index === pendingInvites.length - 1 && styles.memberItemLast,
+                    ]}
+                  >
+                    <View style={styles.memberLeft}>
+                      <View style={[styles.memberAvatar, styles.pendingAvatar]}>
+                        <Ionicons name="mail-outline" size={20} color="#f59e0b" />
+                      </View>
+                      <View style={styles.memberInfo}>
+                        <View style={styles.memberNameRow}>
+                          <Text style={styles.memberName}>{inviteeName}</Text>
+                          {isExpired && (
+                            <View style={styles.expiredBadge}>
+                              <Text style={styles.expiredBadgeText}>Expired</Text>
+                            </View>
+                          )}
+                        </View>
+                        <Text style={styles.memberEmail}>{invite.invitee_email}</Text>
+                        <Text style={styles.memberJoined}>
+                          Invited {moment.utc(invite.created_at).local().format('M/D/YYYY')}
+                          {invite.expires_at && !isExpired && (
+                            <Text style={styles.expiresText}>
+                              {' • Expires '}
+                              {moment.utc(invite.expires_at).local().format('M/D/YYYY')}
+                            </Text>
+                          )}
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={styles.pendingIcon}>
+                      <Ionicons name="time-outline" size={20} color="#f59e0b" />
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+        )}
       </ScrollView>
     </View>
   );
@@ -422,6 +513,42 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     marginLeft: 6,
+  },
+  pendingBadge: {
+    backgroundColor: '#fef3c7',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    minWidth: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pendingBadgeText: {
+    color: '#f59e0b',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  pendingAvatar: {
+    backgroundColor: '#fef3c7',
+  },
+  pendingIcon: {
+    padding: 4,
+  },
+  expiredBadge: {
+    backgroundColor: '#fee2e2',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginLeft: 8,
+  },
+  expiredBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#dc2626',
+  },
+  expiresText: {
+    fontSize: 11,
+    color: '#9ca3af',
   },
 });
 

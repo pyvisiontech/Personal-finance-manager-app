@@ -32,19 +32,63 @@ export async function fetchStatementTransactions(
         )
       `)
       .eq('user_id', userId)
-      .eq('source', 'statement')
-      .gte('created_at', statementCreatedAt);
+      .eq('source', 'statement');
+    
+    // Use statement_import_id (file_id) for direct mapping if column exists
+    // Fallback to timestamp matching for backward compatibility
+    try {
+      // Try to use statement_import_id first (proper direct link)
+      query = query.eq('statement_import_id', statementId);
+    } catch (queryError) {
+      // If statement_import_id column doesn't exist yet, use timestamp fallback
+      console.warn('statement_import_id column not found, using timestamp fallback');
+      query = query.gte('created_at', statementCreatedAt);
+    }
 
     const { data, error } = await query.order('occurred_at', { ascending: false });
 
     if (error) {
+      // If error is about missing column, fallback to timestamp method
+      if (error.message?.includes('statement_import_id') || error.message?.includes('column')) {
+        console.warn('statement_import_id column not found, using timestamp fallback');
+        const fallbackQuery = supabase
+          .from('transactions')
+          .select(`
+            *,
+            category_user:category_user_id (
+              id,
+              name,
+              icon
+            ),
+            category_ai:category_ai_id (
+              id,
+              name,
+              icon
+            )
+          `)
+          .eq('user_id', userId)
+          .eq('source', 'statement')
+          .gte('created_at', statementCreatedAt);
+        
+        const { data: fallbackData, error: fallbackError } = await fallbackQuery.order('occurred_at', { ascending: false });
+        
+        if (fallbackError) {
+          console.error('Error fetching statement transactions (fallback):', fallbackError);
+          throw new Error(`Failed to fetch transactions: ${fallbackError.message}`);
+        }
+        
+        const transactions = (fallbackData || []) as TransactionWithCategory[];
+        console.log(`Found ${transactions.length} transactions for statement ${statementId} (using timestamp fallback)`);
+        return transactions;
+      }
+      
       console.error('Error fetching statement transactions:', error);
       throw new Error(`Failed to fetch transactions: ${error.message}`);
     }
 
     const transactions = (data || []) as TransactionWithCategory[];
 
-    console.log(`Found ${transactions.length} transactions for statement ${statementId}`);
+    console.log(`Found ${transactions.length} transactions for statement ${statementId} (using statement_import_id)`);
 
     return transactions;
   } catch (error) {
@@ -217,7 +261,7 @@ ${summaryRows.join('\n')}
   let transRowNum = 1;
 
   // Header row
-  const headers = ['Date', 'Description', 'Merchant', 'Category', 'Type', 'Amount', 'Currency'];
+  const headers = ['Date', 'Description', 'Category', 'Type', 'Amount', 'Currency'];
   const headerIndices = headers.map(h => getStringIndex(h));
   transactionRows.push(createRow(transRowNum++, [
     createCell('A', 1, headerIndices[0]),
@@ -225,8 +269,7 @@ ${summaryRows.join('\n')}
     createCell('C', 1, headerIndices[2]),
     createCell('D', 1, headerIndices[3]),
     createCell('E', 1, headerIndices[4]),
-    createCell('F', 1, headerIndices[5]),
-    createCell('G', 1, headerIndices[6])
+    createCell('F', 1, headerIndices[5])
   ]));
 
   // Transaction rows
@@ -239,11 +282,9 @@ ${summaryRows.join('\n')}
     const categoryName = category?.name || 'Uncategorized';
     const date = new Date(transaction.occurred_at).toLocaleDateString();
     const description = transaction.raw_description || transaction.merchant || 'N/A';
-    const merchant = transaction.merchant || 'N/A';
 
     const dateIdx = getStringIndex(date);
     const descIdx = getStringIndex(description);
-    const merchIdx = getStringIndex(merchant);
     const catIdx = getStringIndex(categoryName);
     const typeIdx = getStringIndex(transaction.type || '');
     const currencyIdx = getStringIndex(transaction.currency || 'INR');
@@ -252,11 +293,10 @@ ${summaryRows.join('\n')}
     transactionRows.push(createRow(transRowNum - 1, [
       createCell('A', transRowNum - 1, dateIdx),
       createCell('B', transRowNum - 1, descIdx),
-      createCell('C', transRowNum - 1, merchIdx),
-      createCell('D', transRowNum - 1, catIdx),
-      createCell('E', transRowNum - 1, typeIdx),
-      createCell('F', transRowNum - 1, Math.round((transaction.amount || 0) * 100) / 100, 'n'),
-      createCell('G', transRowNum - 1, currencyIdx)
+      createCell('C', transRowNum - 1, catIdx),
+      createCell('D', transRowNum - 1, typeIdx),
+      createCell('E', transRowNum - 1, Math.round((transaction.amount || 0) * 100) / 100, 'n'),
+      createCell('F', transRowNum - 1, currencyIdx)
     ]));
   });
 
@@ -264,7 +304,7 @@ ${summaryRows.join('\n')}
   const transLastRow = transRowNum - 1;
   const transactionsSheetXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
-<dimension ref="A1:G${transLastRow}"/>
+<dimension ref="A1:F${transLastRow}"/>
 <sheetViews>
 <sheetView workbookViewId="0"/>
 </sheetViews>

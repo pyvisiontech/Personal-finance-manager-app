@@ -88,7 +88,7 @@ export function StatementsListScreen() {
           refetch();
         })
         .catch((error) => {
-          console.error('Auto-processing failed:', error);
+          
           // Remove from processed set so it can be retried
           processedStatementsRef.current.delete(statement.id);
         });
@@ -181,7 +181,7 @@ export function StatementsListScreen() {
           }
         }
       } catch (urlError) {
-        console.warn('Could not create signed URL, using public URL:', urlError);
+       
       }
 
       // Call backend to process the statement
@@ -217,7 +217,7 @@ export function StatementsListScreen() {
       // Refetch to update status
       await refetch();
     } catch (error: any) {
-      console.error('Reprocess error:', error);
+      
       Alert.alert(
         'Reprocessing Failed',
         error.message || 'Failed to start processing. Please try again.',
@@ -285,7 +285,8 @@ export function StatementsListScreen() {
   };
 
   const formatDate = (dateString: string) => {
-    return moment(dateString).format('MMM DD, YYYY hh:mm A');
+    // Parse UTC timestamp from Supabase and convert to local timezone
+    return moment.utc(dateString).local().format('MMM DD, YYYY hh:mm A');
   };
 
   // Download statement transactions as Excel
@@ -326,7 +327,7 @@ export function StatementsListScreen() {
       // Download/share the file
       await downloadStatementExcel(fileUri, fileName);
     } catch (error: any) {
-      console.error('Download error:', error);
+     
       Alert.alert(
         'Download Failed',
         error.message || 'Failed to download statement. Please try again.',

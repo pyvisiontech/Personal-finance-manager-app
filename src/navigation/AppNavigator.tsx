@@ -3,6 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useAuth } from '../context/AuthContext';
+import { useGroupContext } from '../context/GroupContext';
 import { LoginScreen } from '../features/auth/screens/LoginScreen';
 import { SignUpScreen } from '../features/auth/screens/SignUpScreen';
 import DashboardScreen from '../features/dashboard/screens/DashboardScreen';
@@ -174,6 +175,8 @@ function GroupDetailsStackNavigator() {
 }
 
 function MainTabs() {
+  const { isGroupsMode } = useGroupContext();
+
   return (
     <Tab.Navigator
       screenOptions={{
@@ -223,16 +226,18 @@ function MainTabs() {
           ),
         }}
       />
-      <Tab.Screen
-        name="GroupDetailsTab"
-        component={GroupDetailsStackNavigator}
-        options={{
-          tabBarLabel: 'Group Details',
-          tabBarIcon: ({ color, size, focused }: { color: string; size: number; focused: boolean }) => (
-            <Ionicons name={focused ? "people" : "people-outline"} color={color} size={size} />
-          ),
-        }}
-      />
+      {isGroupsMode && (
+        <Tab.Screen
+          name="GroupDetailsTab"
+          component={GroupDetailsStackNavigator}
+          options={{
+            tabBarLabel: 'Group Details',
+            tabBarIcon: ({ color, size, focused }: { color: string; size: number; focused: boolean }) => (
+              <Ionicons name={focused ? "people" : "people-outline"} color={color} size={size} />
+            ),
+          }}
+        />
+      )}
     </Tab.Navigator>
   );
 }
