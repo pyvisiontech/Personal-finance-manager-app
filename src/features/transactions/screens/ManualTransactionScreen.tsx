@@ -245,7 +245,7 @@ const ManualTransactionScreen = () => {
       }
     } catch (error) {
       // If we can't determine, default to TransactionsList
-      console.log('Error checking navigation state:', error);
+      
     }
     
     // Default: return to TransactionsListScreen
@@ -288,6 +288,9 @@ const ManualTransactionScreen = () => {
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [date, setDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
 
@@ -337,7 +340,7 @@ const ManualTransactionScreen = () => {
         });
       }
     } else {
-      console.log('➕ [DEBUG] Creating new transaction (not editing) - existingTransaction is:', existingTransaction);
+      
     }
   }, [existingTransaction]);
 
@@ -352,7 +355,7 @@ const ManualTransactionScreen = () => {
           .order('name', { ascending: true });
 
         if (error) {
-          console.error('Error fetching categories:', error);
+        
           Alert.alert('Error', 'Failed to load categories. Using default categories.');
           return;
         }
@@ -361,7 +364,7 @@ const ManualTransactionScreen = () => {
           setCategories(data);
         }
       } catch (error) {
-        console.error('Error in fetchCategories:', error);
+       
         Alert.alert('Error', 'Failed to load categories. Using default categories.');
       } finally {
         setLoading(false);
@@ -392,20 +395,22 @@ const ManualTransactionScreen = () => {
     // Validate selectedCategory has an ID
     if (!selectedCategory.id) {
       Alert.alert('Error', 'Selected category is missing an ID');
-      console.error('❌ Selected category has no ID:', selectedCategory);
+     
       return;
     }
 
     // Validate that we have transaction ID when editing
     if (isEditing && (!existingTransaction || !existingTransaction.id)) {
       Alert.alert('Error', 'Cannot edit: Transaction ID is missing');
-      console.error('❌ [DEBUG] Edit attempt without transaction ID:', { 
-        isEditing, 
-        existingTransaction,
-        existingTransactionId: existingTransaction?.id,
-        existingTransactionKeys: existingTransaction ? Object.keys(existingTransaction) : [],
-      });
+     
       return;
+    }
+
+    // Set updating state when editing, saving state when creating new
+    if (isEditing) {
+      setIsUpdating(true);
+    } else {
+      setIsSaving(true);
     }
 
     try {
@@ -451,16 +456,7 @@ const ManualTransactionScreen = () => {
         occurred_at: occurredAt, // Use formatted date string
       };
 
-      console.log('🔍 [DEBUG] Condition check before UPDATE/INSERT:', {
-        isEditing,
-        hasExistingTransaction: !!existingTransaction,
-        hasExistingTransactionId: !!(existingTransaction && existingTransaction.id),
-        existingTransactionId: existingTransaction?.id,
-        existingTransactionSource: existingTransaction?.source,
-        conditionResult: isEditing && existingTransaction && existingTransaction.id,
-        willUpdate: !!(isEditing && existingTransaction && existingTransaction.id),
-        willInsert: !(isEditing && existingTransaction && existingTransaction.id),
-      });
+     
 
       if (isEditing && existingTransaction && existingTransaction.id) {
         // When editing, UPDATE the existing transaction with the same UUID
@@ -480,28 +476,6 @@ const ManualTransactionScreen = () => {
           occurred_at: occurredAt,
         };
         
-        console.log('🔍 [DEBUG] ========== UPDATE PATH ==========');
-        console.log('📤 [DEBUG] Updating transaction:', {
-          transactionId: existingTransaction.id,
-          transactionIdType: typeof existingTransaction.id,
-          transactionSource: existingTransaction.source,
-          currentUserId: user.id,
-          transactionUserId: existingTransaction.user_id,
-          userIdsMatch: user.id === existingTransaction.user_id,
-          oldAmount: existingTransaction.amount,
-          newAmount: updatePayload.amount,
-          oldCategoryUser: existingTransaction.category_user_id,
-          oldCategoryAi: existingTransaction.category_ai_id,
-          newCategoryUser: updatePayload.category_user_id,
-          preservingAiCategory: updatePayload.category_ai_id,
-        });
-        console.log('📤 [DEBUG] Full update payload:', JSON.stringify(updatePayload, null, 2));
-        console.log('📤 [DEBUG] UPDATE query will use:', {
-          table: 'transactions',
-          filter: `id = '${existingTransaction.id}'`,
-          userIdInPayload: updatePayload.user_id,
-        });
-        
         // UPDATE the existing transaction - do NOT create a new one
         const { data: updatedData, error: updateError } = await supabase
           .from('transactions')
@@ -509,41 +483,16 @@ const ManualTransactionScreen = () => {
           .eq('id', existingTransaction.id) // Update by ID to ensure same UUID
           .select()
           .single();
-        
-        console.log('📥 [DEBUG] Update response:', {
-          hasData: !!updatedData,
-          hasError: !!updateError,
-          errorCode: updateError?.code,
-          errorMessage: updateError?.message,
-          errorDetails: updateError?.details,
-          errorHint: updateError?.hint,
-          updatedDataId: updatedData?.id,
-          updatedCategoryUser: updatedData?.category_user_id,
-          updatedCategoryAi: updatedData?.category_ai_id,
-          updatedSource: updatedData?.source,
-          fullResponse: JSON.stringify({ data: updatedData, error: updateError }, null, 2),
-        });
 
         if (updateError) {
-          console.error('❌ [DEBUG] Update error occurred:', {
-            code: updateError.code,
-            message: updateError.message,
-            details: updateError.details,
-            hint: updateError.hint,
-            fullError: JSON.stringify(updateError, null, 2),
-          });
+          
           Alert.alert('Update Failed', `Failed to update transaction: ${updateError.message}`);
           throw updateError;
         }
         
         if (!updatedData) {
           const errorMsg = 'Transaction update returned no data - transaction may not exist';
-          console.error('❌ [DEBUG]', errorMsg, {
-            transactionId: existingTransaction.id,
-            userId: user.id,
-            transactionUserId: existingTransaction.user_id,
-            source: existingTransaction.source,
-          });
+          
           Alert.alert('Update Failed', errorMsg);
           throw new Error(errorMsg);
         }
@@ -551,47 +500,31 @@ const ManualTransactionScreen = () => {
         // Verify the updated transaction has the same ID
         if (updatedData.id !== existingTransaction.id) {
           const errorMsg = `Transaction ID mismatch! Expected ${existingTransaction.id}, got ${updatedData.id}`;
-          console.error('❌ [DEBUG]', errorMsg);
+          
           throw new Error(errorMsg);
         }
         
         // Verify the category_user_id was actually saved
         if (updatedData.category_user_id !== selectedCategory.id) {
           const errorMsg = `Category not saved! Expected ${selectedCategory.id}, got ${updatedData.category_user_id}`;
-          console.error('❌ [DEBUG]', errorMsg);
-          console.error('Update payload was:', updatePayload);
-          console.error('Updated data received:', updatedData);
+        
           Alert.alert('Warning', 'Category may not have been saved correctly. Please check Supabase.');
         }
         
-        console.log('✅ [DEBUG] Transaction updated successfully:', {
-          id: updatedData.id,
-          category_user_id: updatedData.category_user_id,
-          category_ai_id: updatedData.category_ai_id,
-          amount: updatedData.amount,
-          source: updatedData.source,
-        });
-        console.log('🔍 [DEBUG] ========== UPDATE PATH COMPLETE ==========');
+        
+        // Update complete, reset updating state
+        setIsUpdating(false);
       } else {
         // Only INSERT if we're NOT editing (creating a new transaction)
-        console.log('🔍 [DEBUG] ========== INSERT PATH ==========');
-        console.log('🔍 [DEBUG] Insert path conditions:', {
-          isEditing,
-          hasExistingTransaction: !!existingTransaction,
-          hasExistingTransactionId: !!(existingTransaction && existingTransaction.id),
-          shouldInsert: !(isEditing && existingTransaction && existingTransaction.id),
-        });
 
         if (isEditing) {
           const errorMsg = `Cannot edit: Transaction ID is missing. isEditing=${isEditing}, hasTransaction=${!!existingTransaction}, hasId=${!!(existingTransaction?.id)}`;
-          console.error('❌ [DEBUG]', errorMsg, {
-            existingTransaction: existingTransaction ? JSON.stringify(existingTransaction, null, 2) : null,
-          });
+        
           throw new Error(errorMsg);
         }
         
-        console.log('🔍 [DEBUG] Creating new transaction (not editing)');
-        console.log('🔍 [DEBUG] Insert payload:', JSON.stringify(payload, null, 2));
+       
+      
         const { data: insertedData, error: insertError } = await supabase
           .from('transactions')
           .insert([payload])
@@ -599,22 +532,11 @@ const ManualTransactionScreen = () => {
           .single();
           
         if (insertError) {
-          console.error('❌ [DEBUG] Insert error:', {
-            code: insertError.code,
-            message: insertError.message,
-            details: insertError.details,
-            hint: insertError.hint,
-            fullError: JSON.stringify(insertError, null, 2),
-          });
+         
           throw insertError;
         }
-        
-        console.log('✅ [DEBUG] New transaction created:', {
-          id: insertedData?.id,
-          source: insertedData?.source,
-          category_user_id: insertedData?.category_user_id,
-        });
-        console.log('🔍 [DEBUG] ========== INSERT PATH COMPLETE ==========');
+        // Save complete, reset saving state
+        setIsSaving(false);
       }
 
       // Invalidate only the specific transaction queries needed (not all queries)
@@ -653,7 +575,9 @@ const ManualTransactionScreen = () => {
         }, 100);
       }
     } catch (error) {
-      console.error('Error saving transaction:', error);
+     
+      setIsUpdating(false); // Reset updating state on error
+      setIsSaving(false); // Reset saving state on error
       Alert.alert('Error', 'Failed to save transaction. Please try again.');
     }
   };
@@ -676,25 +600,33 @@ const ManualTransactionScreen = () => {
           style: 'destructive',
           onPress: async () => {
             try {
+              setIsDeleting(true);
+              
               const { error: deleteError } = await supabase
                 .from('transactions')
                 .delete()
                 .eq('id', existingTransaction.id);
 
               if (deleteError) {
-                console.error('Error deleting transaction:', deleteError);
+               
+                setIsDeleting(false);
                 Alert.alert('Error', 'Failed to delete transaction. Please try again.');
                 return;
               }
 
               queryClient.invalidateQueries({ queryKey: ['transactions'] });
+              
+              // Reset deleting state before navigation
+              setIsDeleting(false);
+              
               // Navigate to TransactionsList and reset stack to prevent reopening
               navigation.reset({
                 index: 0,
                 routes: [{ name: 'TransactionsList' as never }],
               });
             } catch (error) {
-              console.error('Error deleting transaction:', error);
+             
+              setIsDeleting(false);
               Alert.alert('Error', 'Failed to delete transaction. Please try again.');
             }
           },
@@ -727,16 +659,36 @@ const ManualTransactionScreen = () => {
         </TouchableOpacity>
         {isEditing ? (
           <>
-            <TouchableOpacity onPress={handleSave}>
-              <Text style={styles.title}>UPDATE</Text>
+            <TouchableOpacity 
+              onPress={handleSave}
+              disabled={isUpdating || isDeleting}
+              style={(isUpdating || isDeleting) && styles.disabledButton}
+            >
+              <Text style={[styles.title, (isUpdating || isDeleting) && styles.disabledText]}>
+                {isUpdating ? 'UPDATING...' : 'UPDATE'}
+              </Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={handleDelete} style={styles.deleteIconButton}>
-              <MaterialIcons name="delete" size={24} color="#b91c1c" />
+            <TouchableOpacity 
+              onPress={handleDelete} 
+              style={styles.deleteIconButton}
+              disabled={isUpdating || isDeleting}
+            >
+              <MaterialIcons 
+                name="delete" 
+                size={24} 
+                color={(isUpdating || isDeleting) ? "#9ca3af" : "#b91c1c"} 
+              />
             </TouchableOpacity>
           </>
         ) : (
-          <TouchableOpacity onPress={handleSave} style={styles.saveButtonRight}>
-            <Text style={styles.title}>SAVE</Text>
+          <TouchableOpacity 
+            onPress={handleSave} 
+            disabled={isSaving}
+            style={[styles.saveButtonRight, isSaving && styles.disabledButton]}
+          >
+            <Text style={[styles.title, isSaving && styles.disabledText]}>
+              {isSaving ? 'SAVING...' : 'SAVE'}
+            </Text>
           </TouchableOpacity>
         )}
       </View>
@@ -915,6 +867,57 @@ const ManualTransactionScreen = () => {
           </View>
         </View>
       </Modal>
+
+      {/* Loading Overlay for Update Progress */}
+      {isUpdating && (
+        <Modal
+          visible={isUpdating}
+          transparent={true}
+          animationType="fade"
+        >
+          <View style={styles.loadingOverlay}>
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#007AFF" />
+              <Text style={styles.loadingText}>Updating transaction...</Text>
+              <Text style={styles.loadingSubtext}>Please wait</Text>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* Loading Overlay for Delete Progress */}
+      {isDeleting && (
+        <Modal
+          visible={isDeleting}
+          transparent={true}
+          animationType="fade"
+        >
+          <View style={styles.loadingOverlay}>
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#b91c1c" />
+              <Text style={styles.loadingText}>Deleting transaction...</Text>
+              <Text style={styles.loadingSubtext}>Please wait</Text>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* Loading Overlay for Save Progress */}
+      {isSaving && (
+        <Modal
+          visible={isSaving}
+          transparent={true}
+          animationType="fade"
+        >
+          <View style={styles.loadingOverlay}>
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#007AFF" />
+              <Text style={styles.loadingText}>Saving transaction...</Text>
+              <Text style={styles.loadingSubtext}>Please wait</Text>
+            </View>
+          </View>
+        </Modal>
+      )}
     </View >
   );
 };
@@ -1168,6 +1171,42 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
     fontWeight: '500',
+  },
+  // Loading Overlay Styles
+  loadingOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 32,
+    alignItems: 'center',
+    minWidth: 200,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  loadingSubtext: {
+    marginTop: 8,
+    fontSize: 14,
+    color: '#666',
+  },
+  disabledButton: {
+    opacity: 0.5,
+  },
+  disabledText: {
+    opacity: 0.7,
   },
 });
 

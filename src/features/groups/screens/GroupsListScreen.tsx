@@ -1,4 +1,4 @@
-import React, { useLayoutEffect } from 'react';
+import React, { useLayoutEffect, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
   FlatList,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../../context/AuthContext';
 import { useGroups } from '../hooks/useGroups';
@@ -16,14 +16,28 @@ import { useGroupContext } from '../../../context/GroupContext';
 import { FamilyGroup } from '../../../lib/types';
 import { RootStackParamList } from '../../../navigation/types';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useCallback } from 'react';
 
 type GroupsListScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'GroupsList'>;
 
 export function GroupsListScreen() {
   const navigation = useNavigation<GroupsListScreenNavigationProp>();
   const { user } = useAuth();
-  const { setCurrentGroup } = useGroupContext();
+  const { setCurrentGroup, setGroupsMode } = useGroupContext();
   const { data: groups = [], isLoading } = useGroups(user?.id || '');
+
+  // Set groups mode when this screen is mounted
+  useEffect(() => {
+    setGroupsMode(true);
+  }, [setGroupsMode]);
+
+  // Handle back navigation (both button press and swipe gesture)
+  const handleBackPress = useCallback(() => {
+    // Clear groups mode before navigating back
+    setGroupsMode(false);
+    // Navigate back to Dashboard
+    navigation.goBack();
+  }, [navigation, setGroupsMode]);
 
   // Add back button to header
   useLayoutEffect(() => {
@@ -31,13 +45,7 @@ export function GroupsListScreen() {
       headerLeft: () => (
         <View style={styles.backButtonContainer}>
           <TouchableOpacity
-            onPress={() => {
-              // Reset navigation stack to Dashboard only to prevent back button from showing
-              navigation.reset({
-                index: 0,
-                routes: [{ name: 'Dashboard' as never }],
-              });
-            }}
+            onPress={handleBackPress}
             style={styles.backButton}
           >
             <Ionicons name="arrow-back" size={24} color="#ffffff" />
@@ -45,7 +53,18 @@ export function GroupsListScreen() {
         </View>
       ),
     });
-  }, [navigation]);
+  }, [navigation, handleBackPress]);
+
+  // Handle swipe back gesture - clear groups mode before removing screen
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+      // Clear groups mode when navigating back (swipe or button)
+      setGroupsMode(false);
+      // Allow the default navigation to proceed
+    });
+
+    return unsubscribe;
+  }, [navigation, setGroupsMode]);
 
   const handleCreateGroup = () => {
     navigation.navigate('CreateGroup');

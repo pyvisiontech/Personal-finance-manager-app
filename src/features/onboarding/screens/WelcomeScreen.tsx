@@ -63,7 +63,7 @@ export function WelcomeScreen({ navigation }: { navigation: any }) {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
-          style={{ backgroundColor: '#0f2d25' }}
+          style={{ backgroundColor: '#007a33' }}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
@@ -134,11 +134,11 @@ export function WelcomeScreen({ navigation }: { navigation: any }) {
 const styles = StyleSheet.create({
   containerWrapper: {
     flex: 1,
-    backgroundColor: '#0f2d25',
+    backgroundColor: '#007a33',
   },
   scrollContent: {
     flexGrow: 1,
-    backgroundColor: '#0f2d25',
+    backgroundColor: '#007a33',
     paddingHorizontal: 20,
     paddingVertical: 40,
     justifyContent: 'center',
@@ -158,7 +158,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 15,
-    color: '#d1cce8',
+    color: '#b2e0d4',
     textAlign: 'center',
     lineHeight: 22,
     paddingHorizontal: 10,
@@ -203,7 +203,7 @@ const styles = StyleSheet.create({
   },
   button: {
     marginTop: 10,
-    backgroundColor: '#0f2d25', // Dark green to match theme and provide contrast
+    backgroundColor: '#007a33', // Green to match login/signup theme
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',

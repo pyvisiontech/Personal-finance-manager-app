@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import * as FileSystem from 'expo-file-system/legacy';
 import { Button } from '../../../components/Button';
 import { Card } from '../../../components/Card';
 import { useUploadStatement, usePickDocument } from '../hooks/useUploadStatement';
@@ -46,12 +47,57 @@ export function UploadStatementScreen() {
 
   const handlePickFile = async () => {
     const file = await pickDocument();
-    if (file) setSelectedFile(file);
+    if (file) {
+      // Check file size before setting it as selected
+      try {
+        const fileInfo = await FileSystem.getInfoAsync(file.uri);
+        if (fileInfo.exists && fileInfo.size !== undefined) {
+          const maxSizeInBytes = 2 * 1024 * 1024; // 2MB in bytes
+          const fileSizeInMB = (fileInfo.size / (1024 * 1024)).toFixed(2);
+          
+          if (fileInfo.size > maxSizeInBytes) {
+            Alert.alert(
+              'File Too Large',
+              `The selected file is ${fileSizeInMB} MB. Please select a file that is 2 MB or smaller.`,
+              [{ text: 'OK' }]
+            );
+            return;
+          }
+        }
+        setSelectedFile(file);
+      } catch (error) {
+        console.error('Error checking file size:', error);
+        Alert.alert('Error', 'Could not read file information. Please try again.');
+      }
+    }
   };
 
   const handleUpload = async () => {
     if (!selectedFile || !user) {
       Alert.alert('Error', 'Please select a file first');
+      return;
+    }
+
+    // Double-check file size before uploading (safety measure)
+    try {
+      const fileInfo = await FileSystem.getInfoAsync(selectedFile.uri);
+      if (fileInfo.exists && fileInfo.size !== undefined) {
+        const maxSizeInBytes = 2 * 1024 * 1024; // 2MB in bytes
+        const fileSizeInMB = (fileInfo.size / (1024 * 1024)).toFixed(2);
+        
+        if (fileInfo.size > maxSizeInBytes) {
+          Alert.alert(
+            'File Too Large',
+            `The selected file is ${fileSizeInMB} MB. Please select a file that is 2 MB or smaller.`,
+            [{ text: 'OK' }]
+          );
+          setSelectedFile(null);
+          return;
+        }
+      }
+    } catch (error) {
+      console.error('Error checking file size:', error);
+      Alert.alert('Error', 'Could not verify file size. Please try again.');
       return;
     }
 
@@ -95,7 +141,7 @@ export function UploadStatementScreen() {
             onPress={handlePickFile}
           >
             <Text>Select File</Text>
-            <Text style={styles.smallText}>Supports: PDF, CSV, XLSX</Text>
+            <Text style={styles.smallText}>Supports: PDF, CSV, XLSX (Max 2MB)</Text>
           </TouchableOpacity>
         ) : (
           <View style={styles.fileContainer}>
@@ -129,6 +175,7 @@ export function UploadStatementScreen() {
         <Text>• PDF (.pdf)</Text>
         <Text>• CSV (.csv)</Text>
         <Text>• Excel (.xlsx, .xls)</Text>
+        <Text style={styles.infoNote}>Maximum file size: 2 MB</Text>
       </View>
     </ScrollView>
   );
@@ -225,5 +272,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 8,
     color: '#1f2937',
+  },
+  infoNote: {
+    marginTop: 8,
+    fontSize: 12,
+    color: '#6b7280',
+    fontStyle: 'italic',
   },
 });

@@ -143,7 +143,7 @@ export default function DashboardScreen() {
   const navigation = useNavigation<any>(); // Using any as a temporary measure
   const { user, authReady } = useAuth();
   const { filterPeriod, currentDate, updateFilter } = useFilter();
-  const { currentGroupId, currentGroupName, clearCurrentGroup } = useGroupContext();
+  const { currentGroupId, currentGroupName, clearCurrentGroup, setGroupsMode } = useGroupContext();
   const hasGroupContext = !!currentGroupId;
   const [viewMode, setViewMode] = useState<'expense' | 'income' | 'total'>('expense');
   const [dashboardMode, setDashboardMode] = useState<'me' | 'groups'>('me');
@@ -153,10 +153,12 @@ export default function DashboardScreen() {
   useEffect(() => {
     if (hasGroupContext) {
       setDashboardMode('groups');
+      setGroupsMode(true);
     } else {
       setDashboardMode('me');
+      setGroupsMode(false);
     }
-  }, [hasGroupContext]);
+  }, [hasGroupContext, setGroupsMode]);
 
   // Handle mode change - update toggle immediately and manage group context
   const handleModeChange = useCallback((mode: 'me' | 'groups') => {
@@ -165,11 +167,13 @@ export default function DashboardScreen() {
     if (mode === 'me') {
       // Clear group context when switching to "Me"
       clearCurrentGroup();
+      setGroupsMode(false);
     } else if (mode === 'groups') {
-      // Replace current screen with GroupsList to avoid back button
-      navigation.replace('GroupsList' as never);
+      // Set groups mode and navigate to GroupsList (use navigate instead of replace to allow swipe back)
+      setGroupsMode(true);
+      navigation.navigate('GroupsList' as never);
     }
-  }, [clearCurrentGroup, navigation]);
+  }, [clearCurrentGroup, navigation, setGroupsMode]);
 
 
   const handleFilterChange = useCallback((period: FilterPeriod) => {
@@ -346,71 +350,6 @@ export default function DashboardScreen() {
   // Select appropriate previous period data based on group context
   const previousTransactions = hasGroupContext ? previousGroupTransactions : previousPersonalTransactions;
 
-  // ============================================================================
-  // TEMPORARILY DISABLED: Deduplication logic (backend now handles duplicates)
-  // ============================================================================
-  // Commented out for testing - backend deduplication + database constraint should prevent duplicates
-  // If issues occur, uncomment this code to re-enable frontend deduplication
-  // ============================================================================
-  // Remove duplicate transactions based on key fields (same logic as TransactionsListScreen)
-  // const deduplicatedTransactions = useMemo(() => {
-  //   if (!transactions || transactions.length === 0) return [];
-  //   
-  //   // Create a map to track unique transactions
-  //   const seen = new Map<string, TransactionWithCategory>();
-  //   let duplicateCount = 0;
-  //   
-  //   transactions.forEach((transaction) => {
-  //     // Create a unique key based on: user_id, amount, occurred_at (date only), and raw_description
-  //     // This helps identify duplicates even if they have different IDs
-  //     const dateKey = moment(transaction.occurred_at).format('YYYY-MM-DD');
-  //     // Normalize description to handle slight variations (trim, lowercase for comparison)
-  //     const normalizedDescription = (transaction.raw_description || '').trim().toLowerCase();
-  //     const uniqueKey = `${transaction.user_id}_${transaction.amount}_${dateKey}_${normalizedDescription}`;
-  //     
-  //     // If we haven't seen this transaction before, or if this one has a more recent created_at
-  //     if (!seen.has(uniqueKey)) {
-  //       seen.set(uniqueKey, transaction);
-  //     } else {
-  //       // If duplicate found, keep the one with the most recent created_at
-  //       duplicateCount++;
-  //       const existing = seen.get(uniqueKey)!;
-  //       if (moment(transaction.created_at).isAfter(moment(existing.created_at))) {
-  //         seen.set(uniqueKey, transaction);
-  //       }
-  //     }
-  //   });
-  //   
-  //   if (duplicateCount > 0) {
-  //     console.log(`⚠️ Dashboard: Removed ${duplicateCount} duplicate transaction(s)`);
-  //   }
-  //   
-  //   return Array.from(seen.values());
-  // }, [transactions]);
-
-  // Remove duplicates from previous period transactions as well
-  // const deduplicatedPreviousTransactions = useMemo(() => {
-  //   if (!previousTransactions || previousTransactions.length === 0) return [];
-  //   
-  //   const seen = new Map<string, TransactionWithCategory>();
-  //   
-  //   previousTransactions.forEach((transaction) => {
-  //     const dateKey = moment(transaction.occurred_at).format('YYYY-MM-DD');
-  //     const normalizedDescription = (transaction.raw_description || '').trim().toLowerCase();
-  //     const uniqueKey = `${transaction.user_id}_${transaction.amount}_${dateKey}_${normalizedDescription}`;
-  //     
-  //     if (!seen.has(uniqueKey)) {
-  //       seen.set(uniqueKey, transaction);
-  //     } else {
-  //       const existing = seen.get(uniqueKey)!;
-  //       if (moment(transaction.created_at).isAfter(moment(existing.created_at))) {
-  //         seen.set(uniqueKey, transaction);
-  //       }
-  //     }
-  //   });
-  //   
-  //   return Array.from(seen.values());
-  // }, [previousTransactions]);
   
   // Use transactions directly (backend should prevent duplicates)
   const deduplicatedTransactions = transactions;
@@ -569,7 +508,8 @@ export default function DashboardScreen() {
     );
   }
 
-  // Don't show empty state for the entire screen, just handle empty data in components
+  // Show loading state in chart area when loading and no transactions yet
+  const showLoadingInChart = isLoading && deduplicatedTransactions.length === 0;
 
 
   return (
@@ -618,7 +558,15 @@ export default function DashboardScreen() {
               : 'Total Overview'}
           </Text>
 
-          {viewMode === 'total' ? (
+          {showLoadingInChart ? (
+            // Show loading state when fetching data
+            <View style={[styles.emptyState, styles.chartPlaceholder]}>
+              <ActivityIndicator size="large" color="#007a33" />
+              <Text style={[styles.emptyStateText, { marginTop: 16 }]}>
+                Loading transactions...
+              </Text>
+            </View>
+          ) : viewMode === 'total' ? (
             <TotalOverviewChart
               currentExpense={processed.totalExpense}
               currentIncome={processed.totalIncome}

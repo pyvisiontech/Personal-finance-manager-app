@@ -54,6 +54,7 @@ export interface Transaction {
   status: TransactionStatus;
   category_ai_id: string | null;
   category_user_id: string | null;
+  statement_import_id: string | null; // Direct link to statement file (file_id)
   occurred_at: string;
   created_at: string;
 }

@@ -21,6 +21,7 @@ export function useGroupInvites(groupId: string) {
           )
         `)
         .eq('group_id', groupId)
+        .in('status', ['pending', 'accepted', 'rejected', 'expired']) // Get all statuses for filtering
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -220,8 +221,13 @@ export function useAcceptGroupInvite() {
 
       return invite;
     },
-    onSuccess: (_, variables) => {
+    onSuccess: (data, variables) => {
+      // Invalidate groups list
       queryClient.invalidateQueries({ queryKey: ['groups', variables.userId] });
+      // Invalidate group invites to remove from pending list
+      queryClient.invalidateQueries({ queryKey: ['groupInvites', data.group_id] });
+      // Invalidate group members to add to members list
+      queryClient.invalidateQueries({ queryKey: ['groupMembers', data.group_id] });
     },
   });
 }
