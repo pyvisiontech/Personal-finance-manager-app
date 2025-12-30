@@ -12,6 +12,9 @@ export type HomeStackParamList = {
   
   // Notifications
   Notifications: undefined;
+  
+  // FAQ
+  FAQ: undefined;
 };
 
 // Transactions Stack
@@ -65,6 +68,9 @@ export type RootStackParamList = {
   
   // Notifications
   Notifications: undefined;
+  
+  // FAQ
+  FAQ: undefined;
 };
 
 // Create a type for navigation props

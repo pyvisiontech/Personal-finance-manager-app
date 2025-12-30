@@ -77,6 +77,13 @@ export interface StatementImport {
   created_at: string;
 }
 
+export interface StatementTransaction {
+  id: string;
+  statement_import_id: string;
+  transaction_id: string;
+  created_at: string;
+}
+
 export interface BudgetPeriod {
   id: string;
   user_id: string;

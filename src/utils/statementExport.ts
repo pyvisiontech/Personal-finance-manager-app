@@ -16,6 +16,70 @@ export async function fetchStatementTransactions(
   statementProcessedAt: string | null
 ): Promise<TransactionWithCategory[]> {
   try {
+    
+    // This allows transactions to belong to multiple statements
+    try {
+      const { data: junctionData, error: junctionError } = await supabase
+        .from('statement_transactions')
+        .select(`
+          transaction:transaction_id (
+            *,
+            category_user:category_user_id (
+              id,
+              name,
+              icon
+            ),
+            category_ai:category_ai_id (
+              id,
+              name,
+              icon
+            )
+          )
+        `)
+        .eq('statement_import_id', statementId);
+
+      if (!junctionError && junctionData) {
+        
+        // Supabase returns: [{ transaction: TransactionWithCategory }, ...]
+        // Type-safe extraction with proper filtering
+        const transactions: TransactionWithCategory[] = [];
+        
+        for (const item of junctionData) {
+          const transaction = item.transaction;
+          
+          // Type guard: ensure transaction exists and matches our criteria
+          if (
+            transaction &&
+            typeof transaction === 'object' &&
+            'id' in transaction &&
+            'user_id' in transaction &&
+            'source' in transaction &&
+            transaction.user_id === userId &&
+            transaction.source === 'statement'
+          ) {
+            // Safe type assertion: transaction comes from Supabase with all required fields
+            transactions.push(transaction as unknown as TransactionWithCategory);
+          }
+        }
+
+        if (transactions.length > 0) {
+          console.log(`Found ${transactions.length} transactions for statement ${statementId} (using junction table)`);
+          // Sort by occurred_at descending
+          transactions.sort((a, b) => 
+            new Date(b.occurred_at).getTime() - new Date(a.occurred_at).getTime()
+          );
+          return transactions;
+        }
+      } else if (junctionError && !junctionError.message?.includes('relation "statement_transactions" does not exist')) {
+        // Junction table exists but query failed - log and fallback
+        console.warn('Junction table query failed, falling back:', junctionError.message);
+      }
+    } catch (junctionTableError: any) {
+      // Junction table might not exist yet (for backward compatibility)
+      console.warn('Junction table not available, using fallback method:', junctionTableError.message);
+    }
+
+    //FALLBACK: Use direct statement_import_id query (backward compatibility)
     let query = supabase
       .from('transactions')
       .select(`
@@ -88,7 +152,7 @@ export async function fetchStatementTransactions(
 
     const transactions = (data || []) as TransactionWithCategory[];
 
-    console.log(`Found ${transactions.length} transactions for statement ${statementId} (using statement_import_id)`);
+    console.log(`Found ${transactions.length} transactions for statement ${statementId} (using statement_import_id fallback)`);
 
     return transactions;
   } catch (error) {
