@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useLayoutEffect } from 'react';
 import {
   View,
   Text,
@@ -28,6 +28,37 @@ export function ProfileScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [profileData, setProfileData] = useState<any>(null);
+
+  // Hide tab bar when this screen is focused
+  useLayoutEffect(() => {
+    const parent = navigation.getParent();
+    if (parent) {
+      parent.setOptions({
+        tabBarStyle: {
+          display: 'none',
+        },
+      });
+    }
+
+    return () => {
+      // Show tab bar when leaving this screen
+      if (parent) {
+        parent.setOptions({
+          tabBarStyle: {
+            backgroundColor: '#f4f1e3',
+            borderTopColor: '#d8d2b8',
+            height: 68,
+            paddingBottom: 10,
+            paddingTop: 8,
+            marginBottom: 8,
+            borderTopLeftRadius: 0,
+            borderTopRightRadius: 0,
+            display: 'flex',
+          },
+        });
+      }
+    };
+  }, [navigation]);
 
   useEffect(() => {
     fetchProfileData();

@@ -19,6 +19,7 @@ import { GroupsListScreen } from '../features/groups/screens/GroupsListScreen';
 import { CreateGroupScreen } from '../features/groups/screens/CreateGroupScreen';
 import { GroupDetailsScreen } from '../features/groups/screens/GroupDetailsScreen';
 import { NotificationsScreen } from '../features/notifications/screens/NotificationsScreen';
+import { FAQScreen } from '../features/faq/screens/FAQScreen';
 import { View, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { RouteProp } from '@react-navigation/native';
@@ -86,6 +87,11 @@ function HomeStackNavigator() {
         name="Notifications"
         component={NotificationsScreen}
         options={{ title: 'Notifications' }}
+      />
+      <HomeStack.Screen
+        name="FAQ"
+        component={FAQScreen}
+        options={{ headerShown: false }}
       />
     </HomeStack.Navigator>
   );

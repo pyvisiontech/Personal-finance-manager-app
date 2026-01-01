@@ -12,7 +12,8 @@ import {
   Modal,
   ScrollView,
   Alert,
-  ActivityIndicator
+  ActivityIndicator,
+  Pressable
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -636,31 +637,49 @@ const ManualTransactionScreen = () => {
   };
 
   return (
-    <View style={styles.container}>
+    <Pressable
+      style={styles.container}
+      onPress={() => {
+        if (showCalculator) {
+          setShowCalculator(false);
+        }
+      }}
+    >
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => {
-          // Always reset TransactionsStack first to remove ManualTransaction from history
-          navigation.reset({
-            index: 0,
-            routes: [{ name: 'TransactionsList' as never }],
-          });
-          
-          // Then navigate to the correct screen based on where we came from
-          const returnScreen = getReturnScreen();
-          if (returnScreen === 'Dashboard') {
-            // Navigate to Dashboard tab after a small delay to ensure stack reset completes
-            setTimeout(() => {
-              navigation.getParent()?.navigate('HomeTab', { screen: 'Dashboard' });
-            }, 100);
-          }
-        }}>
+        <TouchableOpacity 
+          onPress={(e) => {
+            // Stop propagation to prevent closing calculator
+            if (showCalculator) {
+              setShowCalculator(false);
+            }
+            // Always reset TransactionsStack first to remove ManualTransaction from history
+            navigation.reset({
+              index: 0,
+              routes: [{ name: 'TransactionsList' as never }],
+            });
+            
+            // Then navigate to the correct screen based on where we came from
+            const returnScreen = getReturnScreen();
+            if (returnScreen === 'Dashboard') {
+              // Navigate to Dashboard tab after a small delay to ensure stack reset completes
+              setTimeout(() => {
+                navigation.getParent()?.navigate('HomeTab', { screen: 'Dashboard' });
+              }, 100);
+            }
+          }}
+        >
           <Text style={styles.cancelButton}>CANCEL</Text>
         </TouchableOpacity>
         {isEditing ? (
           <>
             <TouchableOpacity 
-              onPress={handleSave}
+              onPress={(e) => {
+                if (showCalculator) {
+                  setShowCalculator(false);
+                }
+                handleSave();
+              }}
               disabled={isUpdating || isDeleting}
               style={(isUpdating || isDeleting) && styles.disabledButton}
             >
@@ -669,7 +688,12 @@ const ManualTransactionScreen = () => {
               </Text>
             </TouchableOpacity>
             <TouchableOpacity 
-              onPress={handleDelete} 
+              onPress={(e) => {
+                if (showCalculator) {
+                  setShowCalculator(false);
+                }
+                handleDelete();
+              }} 
               style={styles.deleteIconButton}
               disabled={isUpdating || isDeleting}
             >
@@ -682,7 +706,12 @@ const ManualTransactionScreen = () => {
           </>
         ) : (
           <TouchableOpacity 
-            onPress={handleSave} 
+            onPress={(e) => {
+              if (showCalculator) {
+                setShowCalculator(false);
+              }
+              handleSave();
+            }} 
             disabled={isSaving}
             style={[styles.saveButtonRight, isSaving && styles.disabledButton]}
           >
@@ -694,45 +723,68 @@ const ManualTransactionScreen = () => {
       </View>
 
       <ScrollView 
-        style={styles.content} 
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-      >
+          style={styles.content} 
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
         {/* Transaction Type Tabs */}
-        <View style={styles.typeContainer}>
-          {['expense', 'income'].map((type) => (
-            <TouchableOpacity
-              key={type}
-              style={[
-                styles.typeButton,
-                transactionType === type && styles.typeButtonActive,
-                {
-                  backgroundColor: type === 'expense' ? '#FF6B6B' : '#4CAF50',
-                  opacity: transactionType === type ? 1 : 0.7
-                }
-              ]}
-              onPress={() => {
-                setTransactionType(type as 'expense' | 'income');
-                setSelectedCategory(null); // Reset category when type changes
-              }}
-            >
+        <Pressable
+          onPress={() => {
+            if (showCalculator) {
+              setShowCalculator(false);
+            }
+          }}
+        >
+          <View style={styles.typeContainer}>
+            {['expense', 'income'].map((type) => (
+              <TouchableOpacity
+                key={type}
+                style={[
+                  styles.typeButton,
+                  transactionType === type && styles.typeButtonActive,
+                  {
+                    backgroundColor: type === 'expense' ? '#FF6B6B' : '#4CAF50',
+                    opacity: transactionType === type ? 1 : 0.7
+                  }
+                ]}
+                onPress={() => {
+                  if (showCalculator) {
+                    setShowCalculator(false);
+                  }
+                  setTransactionType(type as 'expense' | 'income');
+                  setSelectedCategory(null); // Reset category when type changes
+                }}
+              >
               <Text style={styles.typeButtonText}>
                 {type.charAt(0).toUpperCase() + type.slice(1)}
               </Text>
               {transactionType === type && (
                 <MaterialIcons name="check" style={styles.checkIcon} />
               )}
-            </TouchableOpacity>
-          ))}
-        </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </Pressable>
 
         {/* Date Selection */}
-        <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>Date</Text>
-          <TouchableOpacity
-            style={styles.dateButton}
-            onPress={() => setShowDatePicker(true)}
-          >
+        <Pressable
+          onPress={() => {
+            if (showCalculator) {
+              setShowCalculator(false);
+            }
+          }}
+        >
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionTitle}>Date</Text>
+            <TouchableOpacity
+              style={styles.dateButton}
+              onPress={() => {
+                if (showCalculator) {
+                  setShowCalculator(false);
+                }
+                setShowDatePicker(true);
+              }}
+            >
             <Text style={styles.dateButtonText}>
               {moment(date).format('ddd, MMM D, YYYY')}
             </Text>
@@ -763,7 +815,8 @@ const ManualTransactionScreen = () => {
               maximumDate={new Date()}
             />
           )}
-        </View>
+          </View>
+        </Pressable>
 
         {/* Amount Display */}
         <View style={styles.amountContainer}>
@@ -777,8 +830,11 @@ const ManualTransactionScreen = () => {
         </View>
 
         {/* Calculator */}
-        {
-          showCalculator && (
+        {showCalculator && (
+          <Pressable
+            onPress={() => {}}
+            onStartShouldSetResponder={() => true}
+          >
             <View style={styles.calculatorContainer}>
               <Calculator
                 onTextChange={(text) => {
@@ -786,16 +842,28 @@ const ManualTransactionScreen = () => {
                 }}
               />
             </View>
-          )
-        }
+          </Pressable>
+        )}
 
         {/* Category Selection */}
-        <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>Category</Text>
-          <TouchableOpacity
-            style={styles.categoryButton}
-            onPress={() => setShowCategoryModal(true)}
-          >
+        <Pressable
+          onPress={() => {
+            if (showCalculator) {
+              setShowCalculator(false);
+            }
+          }}
+        >
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionTitle}>Category</Text>
+            <TouchableOpacity
+              style={styles.categoryButton}
+              onPress={() => {
+                if (showCalculator) {
+                  setShowCalculator(false);
+                }
+                setShowCategoryModal(true);
+              }}
+            >
             <Text style={[styles.categoryButtonText, !selectedCategory && { color: '#999' }]}>
               {selectedCategory
                 ? `${selectedCategory.icon} ${selectedCategory.name}`
@@ -803,20 +871,35 @@ const ManualTransactionScreen = () => {
             </Text>
             <MaterialIcons name="keyboard-arrow-down" size={20} color="#666" />
           </TouchableOpacity>
-        </View>
+          </View>
+        </Pressable>
 
         {/* Note Input */}
-        <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>Note</Text>
-          <TextInput
-            style={styles.noteInput}
-            placeholder="What's this for?"
-            value={note}
-            onChangeText={setNote}
-            multiline
-          />
-        </View>
-      </ScrollView >
+        <Pressable
+          onPress={() => {
+            if (showCalculator) {
+              setShowCalculator(false);
+            }
+          }}
+        >
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionTitle}>Note</Text>
+            <TextInput
+              style={styles.noteInput}
+              placeholder="What's this for?"
+              value={note}
+              onChangeText={setNote}
+              multiline
+              onFocus={() => {
+                if (showCalculator) {
+                  setShowCalculator(false);
+                }
+              }}
+            />
+          </View>
+        </Pressable>
+      </ScrollView>
+
 
       {/* Category Selection Modal */}
       {/* Category Selection Modal */}
@@ -826,8 +909,15 @@ const ManualTransactionScreen = () => {
         transparent={true}
         onRequestClose={() => setShowCategoryModal(false)}
       >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
+        <TouchableOpacity
+          style={styles.modalContainer}
+          activeOpacity={1}
+          onPress={() => setShowCategoryModal(false)}
+        >
+          <View 
+            style={styles.modalContent}
+            onStartShouldSetResponder={() => true}
+          >
             <Text style={styles.modalTitle}>Select Category</Text>
             {loading ? (
               <ActivityIndicator size="large" color="#007AFF" style={{ marginVertical: 20 }} />
@@ -865,7 +955,7 @@ const ManualTransactionScreen = () => {
               <Text style={styles.closeButtonText}>Close</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </TouchableOpacity>
       </Modal>
 
       {/* Loading Overlay for Update Progress */}
@@ -918,7 +1008,7 @@ const ManualTransactionScreen = () => {
           </View>
         </Modal>
       )}
-    </View >
+    </Pressable>
   );
 };
 const styles = StyleSheet.create({
@@ -1032,6 +1122,11 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     borderRadius: 12,
     overflow: 'hidden',
+    zIndex: 10,
+    position: 'relative',
+  },
+  calculatorInner: {
+    zIndex: 10,
   },
   calculator: {
     backgroundColor: '#f5f5f5',
@@ -1207,6 +1302,31 @@ const styles = StyleSheet.create({
   },
   disabledText: {
     opacity: 0.7,
+  },
+  calculatorOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'transparent',
+    zIndex: 5,
+  },
+  calculatorWrapper: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    zIndex: 2,
+    padding: 16,
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
   },
 });
 

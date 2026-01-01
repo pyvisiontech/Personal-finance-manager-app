@@ -70,13 +70,11 @@ export function ProfileMenu() {
         case 'groups':
           navigation.navigate('HomeTab', { screen: 'GroupsList' });
           break;
-        case 'help':
-          // Navigate to help center (you can create this later)
-          // navigation.navigate('HelpCenter');
+        case 'settings':
+          // Settings screen - coming soon
           break;
-        case 'intro':
-          // Navigate to introduction screen (you can create this later)
-          // navigation.navigate('Introduction');
+        case 'faq':
+          navigation.navigate('HomeTab', { screen: 'FAQ' });
           break;
         case 'logout':
           handleLogout();
@@ -209,28 +207,28 @@ export function ProfileMenu() {
 
                 <TouchableOpacity
                   style={styles.menuItem}
-                  onPress={() => handleMenuOption('help')}
+                  onPress={() => handleMenuOption('settings')}
                   activeOpacity={0.7}
                 >
                   <View style={styles.menuItemLeft}>
-                    <View style={[styles.menuIconContainer, { backgroundColor: '#F0FDF4' }]}>
-                      <MaterialIcons name="help-outline" size={20} color="#10B981" />
+                    <View style={[styles.menuIconContainer, { backgroundColor: '#F3F4F6' }]}>
+                      <MaterialIcons name="settings" size={20} color="#6B7280" />
                     </View>
-                    <Text style={styles.menuItemText}>Help Center</Text>
+                    <Text style={styles.menuItemText}>Settings</Text>
                   </View>
                   <MaterialIcons name="chevron-right" size={20} color="#9CA3AF" />
                 </TouchableOpacity>
 
                 <TouchableOpacity
                   style={styles.menuItem}
-                  onPress={() => handleMenuOption('intro')}
+                  onPress={() => handleMenuOption('faq')}
                   activeOpacity={0.7}
                 >
                   <View style={styles.menuItemLeft}>
-                    <View style={[styles.menuIconContainer, { backgroundColor: '#FEF3C7' }]}>
-                      <MaterialIcons name="info-outline" size={20} color="#F59E0B" />
+                    <View style={[styles.menuIconContainer, { backgroundColor: '#F0FDF4' }]}>
+                      <MaterialIcons name="help-outline" size={20} color="#10B981" />
                     </View>
-                    <Text style={styles.menuItemText}>Introduction to App</Text>
+                    <Text style={styles.menuItemText}>FAQ</Text>
                   </View>
                   <MaterialIcons name="chevron-right" size={20} color="#9CA3AF" />
                 </TouchableOpacity>
