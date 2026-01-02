@@ -2,9 +2,7 @@ import { supabase } from '../lib/supabase';
 import { TransactionWithCategory } from '../lib/types';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
-import { Platform } from 'react-native';
 import JSZip from 'jszip';
-import { DownloadManager } from './DownloadManagerModule';
 
 /**
  * Fetches all transactions for a specific statement
@@ -429,36 +427,14 @@ ${sharedStrings.map(s => `<si><t>${escapeXml(s)}</t></si>`).join('\n')}
 }
 
 /**
- * Downloads the Excel file using SAF (Storage Access Framework) on Android
- * or sharing dialog on iOS
+ * Shares the Excel file using the native sharing dialog
+ * Works on both iOS and Android
  */
 export async function downloadStatementExcel(
   fileUri: string,
   fileName: string
 ): Promise<void> {
   try {
-    if (Platform.OS === 'android') {
-      // Try to use SAF (Storage Access Framework) for Android - shows save location picker
-      try {
-        await DownloadManager.saveFileWithPicker(fileUri, fileName);
-        return; // Success, exit early
-      } catch (nativeError: any) {
-        // If native module is not available, fall back to sharing
-        if (nativeError?.message?.includes('not available') || nativeError?.message?.includes('DownloadManagerModule')) {
-          console.warn('Native DownloadManager not available, falling back to sharing dialog');
-          // Fall through to sharing dialog
-        } else {
-          // Re-throw other errors (like user cancellation)
-          if (nativeError?.code === 'USER_CANCELLED' || nativeError?.message?.includes('cancelled')) {
-            console.log('User cancelled file save');
-            return;
-          }
-          throw nativeError;
-        }
-      }
-    }
-    
-    // Fallback to sharing dialog (iOS or Android if native module unavailable)
     const isAvailable = await Sharing.isAvailableAsync();
     if (isAvailable) {
       await Sharing.shareAsync(fileUri, {
@@ -471,10 +447,10 @@ export async function downloadStatementExcel(
   } catch (error: any) {
     // If user cancelled, don't show error
     if (error?.code === 'USER_CANCELLED' || error?.message?.includes('cancelled')) {
-      console.log('User cancelled file save');
+      console.log('User cancelled file share');
       return;
     }
-    console.error('Error saving file:', error);
+    console.error('Error sharing file:', error);
     throw error;
   }
 }
