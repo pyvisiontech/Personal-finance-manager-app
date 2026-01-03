@@ -11,7 +11,7 @@ import { StatementImport, StatementStatus } from '../../../lib/types';
 import { RootStackParamList } from '../../../navigation/types';
 import { supabase } from '../../../lib/supabase';
 import moment from 'moment';
-import { fetchStatementTransactions, exportStatementToExcel, downloadStatementExcel } from '../../../utils/statementExport';
+import { fetchStatementTransactions, exportStatementToExcel, saveStatementToDevice } from '../../../utils/statementExport';
 
 // Calculate status bar height for header padding
 const STATUS_BAR_HEIGHT = Platform.OS === 'ios' ? 50 : (StatusBar.currentHeight || 0) + 12;
@@ -69,7 +69,7 @@ export function StatementsListScreen() {
 
   // Automatically process statements with "uploaded" status when they appear
   const processedStatementsRef = useRef<Set<string>>(new Set());
-  
+
   useEffect(() => {
     if (!user?.id || !statements || statements.length === 0) return;
 
@@ -80,7 +80,7 @@ export function StatementsListScreen() {
     uploadedStatements.forEach((statement) => {
       // Mark as being processed to avoid duplicate calls
       processedStatementsRef.current.add(statement.id);
-      
+
       // Automatically trigger processing for uploaded statements (silent mode)
       reprocessStatement(statement, true)
         .then(() => {
@@ -88,7 +88,7 @@ export function StatementsListScreen() {
           refetch();
         })
         .catch((error) => {
-          
+
           // Remove from processed set so it can be retried
           processedStatementsRef.current.delete(statement.id);
         });
@@ -181,7 +181,7 @@ export function StatementsListScreen() {
           }
         }
       } catch (urlError) {
-       
+
       }
 
       // Call backend to process the statement
@@ -217,7 +217,7 @@ export function StatementsListScreen() {
       // Refetch to update status
       await refetch();
     } catch (error: any) {
-      
+
       Alert.alert(
         'Reprocessing Failed',
         error.message || 'Failed to start processing. Please try again.',
@@ -308,7 +308,7 @@ export function StatementsListScreen() {
 
       if (transactions.length === 0) {
         Alert.alert(
-          'No Transactions Found', 
+          'No Transactions Found',
           'No transactions were found for this statement. This could mean:\n\n' +
           '• The statement is still being processed\n' +
           '• No transactions were extracted from the statement\n' +
@@ -324,10 +324,12 @@ export function StatementsListScreen() {
       const statementFileName = getFileName(statement.file_url);
       const { fileUri, fileName } = await exportStatementToExcel(transactions, statementFileName);
 
-      // Download/share the file
-      await downloadStatementExcel(fileUri, fileName);
+      // Save file directly to device
+      const resultMessage = await saveStatementToDevice(fileUri, fileName);
+
+      Alert.alert('Success', resultMessage, [{ text: 'OK' }]);
     } catch (error: any) {
-     
+
       Alert.alert(
         'Download Failed',
         error.message || 'Failed to download statement. Please try again.',

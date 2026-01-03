@@ -48,10 +48,10 @@ export async function fetchStatementTransactions(
     // Supabase returns: [{ transaction: TransactionWithCategory }, ...]
     // Type-safe extraction with proper filtering
     const transactions: TransactionWithCategory[] = [];
-    
+
     for (const item of junctionData) {
       const transaction = item.transaction;
-      
+
       // Type guard: ensure transaction exists and matches our criteria
       if (
         transaction &&
@@ -68,12 +68,12 @@ export async function fetchStatementTransactions(
     }
 
     console.log(`Found ${transactions.length} transactions for statement ${statementId} (using junction table)`);
-    
+
     // Sort by occurred_at descending
-    transactions.sort((a, b) => 
+    transactions.sort((a, b) =>
       new Date(b.occurred_at).getTime() - new Date(a.occurred_at).getTime()
     );
-    
+
     return transactions;
   } catch (error) {
     console.error('Error in fetchStatementTransactions:', error);
@@ -257,7 +257,7 @@ ${summaryRows.join('\n')}
   ]));
 
   // Transaction rows
-  const sortedTransactions = [...transactions].sort((a, b) => 
+  const sortedTransactions = [...transactions].sort((a, b) =>
     new Date(b.occurred_at).getTime() - new Date(a.occurred_at).getTime()
   );
 
@@ -298,7 +298,7 @@ ${transactionRows.join('\n')}
 </worksheet>`;
 
   // ===== Create XLSX file structure =====
-  
+
   // [Content_Types].xml
   const contentTypes = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
@@ -402,7 +402,7 @@ ${sharedStrings.map(s => `<si><t>${escapeXml(s)}</t></si>`).join('\n')}
   // ===== SAVE FILE =====
   const fileName = `Statement_${statementFileName.replace(/[^a-z0-9]/gi, '_')}_${Date.now()}.xlsx`;
   const directory = FileSystem.documentDirectory || FileSystem.cacheDirectory;
-  
+
   if (!directory) {
     throw new Error('Unable to determine file system directory');
   }
@@ -452,5 +452,85 @@ export async function downloadStatementExcel(
     }
     console.error('Error sharing file:', error);
     throw error;
+  }
+}
+
+/**
+ * Saves file directly to device storage
+ * Android: Uses Storage Access Framework to save to user-selected folder
+ * iOS: Saves to app documents (accessible via Files app)
+ */
+import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+export async function saveStatementToDevice(
+  fileUri: string,
+  fileName: string,
+  mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+): Promise<string> {
+  if (Platform.OS === 'android') {
+    try {
+      // 1. Get saved directory URI
+      let dirUri = await AsyncStorage.getItem('statement_download_dir');
+
+      if (!dirUri) {
+        const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+
+        if (!permissions.granted) {
+          throw new Error('Permission not granted to access directory');
+        }
+        dirUri = permissions.directoryUri;
+        await AsyncStorage.setItem('statement_download_dir', dirUri);
+      }
+
+      // 3. Read file content as base64
+      const content = await FileSystem.readAsStringAsync(fileUri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      // 4. Create file in the selected directory
+      try {
+        const newFileUri = await FileSystem.StorageAccessFramework.createFileAsync(
+          dirUri,
+          fileName,
+          mimeType
+        );
+
+        // 5. Write content to the new file
+        await FileSystem.writeAsStringAsync(newFileUri, content, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+      } catch (e) {
+        // If it fails (e.g. permission revoked), try asking again
+        console.log('Failed to save with cached URI, requesting permission again...');
+        const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+        if (!permissions.granted) {
+          throw new Error('Permission not granted');
+        }
+        dirUri = permissions.directoryUri;
+        await AsyncStorage.setItem('statement_download_dir', dirUri);
+
+        const newFileUri = await FileSystem.StorageAccessFramework.createFileAsync(
+          dirUri,
+          fileName,
+          mimeType
+        );
+        await FileSystem.writeAsStringAsync(newFileUri, content, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+      }
+
+      return 'File saved successfully';
+    } catch (error) {
+      console.error('Error saving file on Android:', error);
+      throw error;
+    }
+  } else {
+    // iOS: The file is already in DocumentDirectory from exportStatementToExcel
+    // We just need to ensure the format is right or copy if needed.
+    // Actually exportStatementToExcel already writes to documentDirectory.
+    // So we just confirm success.
+
+    return 'Saved to Files app (On My iPhone > Personal Finance Manager)';
   }
 }

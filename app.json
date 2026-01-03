@@ -21,6 +21,12 @@
       "predictiveBackGestureEnabled": false,
       "package": "com.rajaramsingh.personalfinancetracker"
     },
+    "ios": {
+      "infoPlist": {
+        "UIFileSharingEnabled": true,
+        "LSSupportsOpeningDocumentsInPlace": true
+      }
+    },
     "web": {
       "favicon": "./assets/favicon.png"
     },
