@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useEffect, useCallback, useLayoutEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl, StyleSheet } from 'react-native';
+import React, { useState, useMemo, useEffect, useCallback, useLayoutEffect, useRef } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, StyleSheet, Animated } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useQueryClient } from '@tanstack/react-query';
@@ -40,6 +40,10 @@ export function TransactionsListScreen() {
   const [viewMode, setViewMode] = useState<'expense' | 'income' | 'total'>('expense');
   const [sortMode, setSortMode] = useState<'date' | 'amount'>('date');
   const [isSortMenuVisible, setIsSortMenuVisible] = useState(false);
+  
+  // Progress bar animation
+  const progressAnim = useRef(new Animated.Value(0)).current;
+  const progressOpacity = useRef(new Animated.Value(0)).current;
 
   // Add notification bell and profile menu to header
   // Show group name when in group context, otherwise show "Transactions"
@@ -129,6 +133,42 @@ export function TransactionsListScreen() {
   const isLoading = hasGroupContext ? isLoadingGroup : isLoadingPersonal;
   const error = hasGroupContext ? groupError : personalError;
   const refetch = hasGroupContext ? refetchGroup : refetchPersonal;
+
+  // Animate progress bar when loading
+  useEffect(() => {
+    if (isLoading && !refreshing) {
+      // Show and animate progress bar
+      Animated.parallel([
+        Animated.timing(progressOpacity, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(progressAnim, {
+          toValue: 0.9, // Animate to 90% (never complete until done)
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      // Complete and hide progress bar
+      Animated.parallel([
+        Animated.timing(progressAnim, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.timing(progressOpacity, {
+          toValue: 0,
+          duration: 300,
+          delay: 200,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        progressAnim.setValue(0);
+      });
+    }
+  }, [isLoading, refreshing]);
 
   // ============================================================================
   // TEMPORARILY DISABLED: Deduplication logic (backend now handles duplicates)
@@ -640,8 +680,35 @@ export function TransactionsListScreen() {
 
   console.log('Transactions data:', { transactions, isLoading, error });
 
+  // Render progress bar
+  const renderProgressBar = () => {
+    if (!isLoading && !refreshing) return null;
+    
+    const progressWidth = progressAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: ['0%', '100%'],
+    });
+
+    return (
+      <Animated.View
+        style={[
+          styles.progressBarContainer,
+          { opacity: progressOpacity },
+        ]}
+      >
+        <Animated.View
+          style={[
+            styles.progressBar,
+            { width: progressWidth },
+          ]}
+        />
+      </Animated.View>
+    );
+  };
+
   return (
     <View style={styles.container}>
+      {renderProgressBar()}
       {renderHeader()}
       <SummaryOverview
         totalExpense={summaryTotals.totalExpense}
@@ -1071,5 +1138,24 @@ const styles = StyleSheet.create({
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  progressBarContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 3,
+    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+    zIndex: 1000,
+    overflow: 'hidden',
+  },
+  progressBar: {
+    height: '100%',
+    backgroundColor: '#007a33',
+    shadowColor: '#007a33',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 4,
+    elevation: 4,
   },
 });
