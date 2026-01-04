@@ -20,6 +20,7 @@ import { CreateGroupScreen } from '../features/groups/screens/CreateGroupScreen'
 import { GroupDetailsScreen } from '../features/groups/screens/GroupDetailsScreen';
 import { NotificationsScreen } from '../features/notifications/screens/NotificationsScreen';
 import { FAQScreen } from '../features/faq/screens/FAQScreen';
+import { FeedbackScreen } from '../features/feedback/screens/FeedbackScreen';
 import { View, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { RouteProp } from '@react-navigation/native';
@@ -91,6 +92,11 @@ function HomeStackNavigator() {
       <HomeStack.Screen
         name="FAQ"
         component={FAQScreen}
+        options={{ headerShown: false }}
+      />
+      <HomeStack.Screen
+        name="Feedback"
+        component={FeedbackScreen}
         options={{ headerShown: false }}
       />
     </HomeStack.Navigator>

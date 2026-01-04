@@ -15,6 +15,9 @@ export type HomeStackParamList = {
   
   // FAQ
   FAQ: undefined;
+  
+  // Feedback
+  Feedback: undefined;
 };
 
 // Transactions Stack
@@ -71,6 +74,9 @@ export type RootStackParamList = {
   
   // FAQ
   FAQ: undefined;
+  
+  // Feedback
+  Feedback: undefined;
 };
 
 // Create a type for navigation props
