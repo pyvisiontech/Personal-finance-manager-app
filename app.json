@@ -25,7 +25,8 @@
       "infoPlist": {
         "UIFileSharingEnabled": true,
         "LSSupportsOpeningDocumentsInPlace": true
-      }
+      },
+      "bundleIdentifier": "com.rajaramsingh.personalfinancetracker"
     },
     "web": {
       "favicon": "./assets/favicon.png"

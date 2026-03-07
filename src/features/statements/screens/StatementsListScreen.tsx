@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect, useLayoutEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl, StyleSheet, StatusBar, Platform, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, StyleSheet, StatusBar, Platform, ActivityIndicator, Alert, AppState, AppStateStatus } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -66,6 +66,14 @@ export function StatementsListScreen() {
       refetch();
     }, [refetch])
   );
+
+  // Refetch when app comes to foreground so "Completed" shows after backend updates
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextState: AppStateStatus) => {
+      if (nextState === 'active') refetch();
+    });
+    return () => subscription.remove();
+  }, [refetch]);
 
   // Automatically process statements with "uploaded" status when they appear
   const processedStatementsRef = useRef<Set<string>>(new Set());
@@ -185,7 +193,7 @@ export function StatementsListScreen() {
       }
 
       // Call backend to process the statement
-      const response = await fetch('https://statement-classifier-python-2.onrender.com/classifier', {
+      const response = await fetch('https://personal-finance-manager-python.onrender.com/classifier', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

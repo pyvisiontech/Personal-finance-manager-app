@@ -38,12 +38,10 @@ const styles = StyleSheet.create({
   },
   backButton: {
     position: 'absolute',
-    top: 20,
+    top: Platform.OS === 'ios' ? 50 : 20,
     left: 20,
     zIndex: 10,
-    padding: 10,
-    backgroundColor: '#2d2854',
-    borderRadius: 20,
+    padding: 8,
   },
   header: {
     marginTop: 0,
@@ -178,10 +176,12 @@ export function SignUpScreen({ navigation }: any) {
   const [otpError, setOtpError] = useState('');
   const { signInWithOtp, verifyOtp, signInWithGoogle, user } = useAuth();
   const googleSignInTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const signInSuccessRef = useRef<boolean>(false);
 
   // Clear timeout when user successfully signs in
   useEffect(() => {
     if (user && googleSignInTimeoutRef.current) {
+      signInSuccessRef.current = true; // Mark sign-in as successful
       clearTimeout(googleSignInTimeoutRef.current);
       googleSignInTimeoutRef.current = null;
       setLoading(false);
@@ -266,11 +266,12 @@ export function SignUpScreen({ navigation }: any) {
   };
 
   const handleGoogleSignUp = async () => {
-    // Clear any existing timeout
+    // Clear any existing timeout and reset success flag
     if (googleSignInTimeoutRef.current) {
       clearTimeout(googleSignInTimeoutRef.current);
       googleSignInTimeoutRef.current = null;
     }
+    signInSuccessRef.current = false; // Reset success flag
 
     setLoading(true);
 
@@ -282,15 +283,16 @@ export function SignUpScreen({ navigation }: any) {
         return;
       }
 
-      // Set a timeout to stop loading if auth doesn't complete within 30 seconds
+      // Set a timeout to stop loading if auth doesn't complete within 45 seconds
+      // Increased timeout to account for new user creation delays
       googleSignInTimeoutRef.current = setTimeout(() => {
-        // Only show timeout if user is still not signed in
-        if (!user) {
+        // Check if sign-in was successful using ref (avoids closure issue)
+        if (!signInSuccessRef.current) {
           setLoading(false);
           Alert.alert('Timeout', 'Sign-in is taking longer than expected. Please try again.');
         }
         googleSignInTimeoutRef.current = null;
-      }, 30000);
+      }, 45000); // Increased from 30 to 45 seconds
 
       // Auth state change will handle setting loading to false and navigation
       // The timeout will be cleared by useEffect when user signs in successfully
@@ -299,6 +301,7 @@ export function SignUpScreen({ navigation }: any) {
         clearTimeout(googleSignInTimeoutRef.current);
         googleSignInTimeoutRef.current = null;
       }
+      signInSuccessRef.current = false;
       setLoading(false);
       Alert.alert('Error', error.message || 'Google sign up failed');
     }
@@ -323,7 +326,7 @@ export function SignUpScreen({ navigation }: any) {
             }
           }}
         >
-          <MaterialIcons name="arrow-back" size={24} color="#4B5563" />
+          <MaterialIcons name="arrow-back" size={28} color="#ffffff" />
         </TouchableOpacity>
 
         <ScrollView

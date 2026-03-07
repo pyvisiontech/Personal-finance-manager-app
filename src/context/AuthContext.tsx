@@ -119,7 +119,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       // Log auth events for debugging
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        console.log('✅ User signed in successfully');
+        console.log('User signed in successfully');
       } else if (event === 'SIGNED_OUT') {
         console.log('User signed out');
       }
@@ -203,7 +203,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           });
           
           if (error) {
-            console.error('❌ Error setting session from deep link:', error);
+            console.error('Error setting session from deep link:', error);
           } else if (data.session) {
            
             // Force auth state change
@@ -432,7 +432,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               return { error: { message: errorDescription || errorParam } };
             }
             
-            console.log('Token extraction:', {
+            console.log('Token extraction:', {  
               hasAccessToken: !!accessToken,
               hasRefreshToken: !!refreshToken,
               accessTokenLength: accessToken?.length || 0,

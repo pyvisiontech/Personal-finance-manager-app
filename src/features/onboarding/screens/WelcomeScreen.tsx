@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, KeyboardAvoidingView, Platform } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../../context/AuthContext';
 
 export function WelcomeScreen({ navigation }: { navigation: any }) {
-  const { clientProfile, completeProfile } = useAuth();
+  const { clientProfile, completeProfile, signOut } = useAuth();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -21,6 +22,14 @@ export function WelcomeScreen({ navigation }: { navigation: any }) {
       setPhoneNumber(clientProfile.phone_number || '');
     }
   }, [clientProfile]);
+
+  const handleBack = async () => {
+    try {
+      await signOut();
+    } catch (error: any) {
+      Alert.alert('Error', error?.message || 'Failed to go back. Please try again.');
+    }
+  };
 
   const onContinue = async () => {
     const newErrors = {
@@ -58,6 +67,11 @@ export function WelcomeScreen({ navigation }: { navigation: any }) {
 
   return (
     <View style={styles.containerWrapper}>
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.backButton} onPress={handleBack}>
+          <Ionicons name="arrow-back" size={24} color="#ffffff" />
+        </TouchableOpacity>
+      </View>
       <KeyboardAvoidingView
         style={styles.containerWrapper}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -136,11 +150,22 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#007a33',
   },
+  topBar: {
+    paddingTop: 50,
+    paddingHorizontal: 20,
+    paddingBottom: 10,
+    backgroundColor: '#007a33',
+    zIndex: 10,
+  },
+  backButton: {
+    alignSelf: 'flex-start',
+    padding: 8,
+  },
   scrollContent: {
     flexGrow: 1,
     backgroundColor: '#007a33',
     paddingHorizontal: 20,
-    paddingVertical: 40,
+    paddingVertical: 20,
     justifyContent: 'center',
   },
   container: {

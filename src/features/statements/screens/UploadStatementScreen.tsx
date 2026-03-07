@@ -1,18 +1,17 @@
 import React, { useState, useLayoutEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  ScrollView, 
-  Alert, 
-  StyleSheet, 
-  TouchableOpacity, 
-  ActivityIndicator 
+import {
+  View,
+  Text,
+  ScrollView,
+  Alert,
+  StyleSheet,
+  TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { MaterialIcons } from '@expo/vector-icons';
 import * as FileSystem from 'expo-file-system/legacy';
-import { Button } from '../../../components/Button';
-import { Card } from '../../../components/Card';
 import { useUploadStatement, usePickDocument } from '../hooks/useUploadStatement';
 import { useAuth } from '../../../context/AuthContext';
 import { RootStackParamList } from '../../../navigation/types';
@@ -131,8 +130,20 @@ export function UploadStatementScreen() {
 
   return (
     <ScrollView style={styles.container}>
-      {/* <Text style={styles.title}>Upload Statement</Text> */}
       <Text style={styles.subtitle}>Upload your bank statement to import transactions</Text>
+
+      <View style={styles.tipCard}>
+        <View style={styles.tipHeader}>
+          <MaterialIcons name="info-outline" size={22} color="#b45309" />
+          <Text style={styles.tipTitle}>Use the right type of statement</Text>
+        </View>
+        <Text style={styles.tipText}>
+          For correct categorization, we need a <Text style={styles.tipBold}>digital statement PDF</Text> downloaded from your bank (where you can select/copy text).
+        </Text>
+        <Text style={styles.tipText}>
+          Scanned or photographed PDFs are image-based — we can’t read transactions from them. Please upload a text-selectable PDF from your bank’s app or website, not a scanned copy.
+        </Text>
+      </View>
 
       <View style={styles.card}>
         {!selectedFile ? (
@@ -195,8 +206,36 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     color: '#6b7280',
-    marginBottom: 20,
+    marginBottom: 16,
     fontSize: 14,
+  },
+  tipCard: {
+    marginBottom: 20,
+    padding: 16,
+    backgroundColor: '#fffbeb',
+    borderRadius: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: '#f59e0b',
+  },
+  tipHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+  tipTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#92400e',
+  },
+  tipText: {
+    fontSize: 13,
+    lineHeight: 20,
+    color: '#78350f',
+    marginBottom: 8,
+  },
+  tipBold: {
+    fontWeight: '600',
   },
   card: {
     marginBottom: 16,
