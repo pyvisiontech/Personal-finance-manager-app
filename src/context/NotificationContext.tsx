@@ -8,6 +8,34 @@ import { Notification as DatabaseNotification } from '../lib/types';
 import * as SecureStore from 'expo-secure-store';
 import moment from 'moment';
 
+
+const parseTimestamp = (timestamp: string | null | undefined): Date => {
+  if (!timestamp) return new Date();
+  
+  try {
+    
+    const momentDate = moment.utc(timestamp);
+    
+    // Validate the parsed date
+    if (!momentDate.isValid()) {
+      console.warn('Invalid timestamp format:', timestamp);
+      // Fallback: try parsing as regular date
+      const fallbackDate = new Date(timestamp);
+      if (isNaN(fallbackDate.getTime())) {
+        return new Date();
+      }
+      return fallbackDate;
+    }
+    
+    // Convert to local timezone and return as Date object
+    return momentDate.local().toDate();
+  } catch (error) {
+    console.warn('Error parsing timestamp:', timestamp, error);
+    // Fallback to new Date() if parsing fails
+    return new Date();
+  }
+};
+
 export interface Notification {
   id: string;
   type: 'statement_uploaded' | 'statement_processing' | 'statement_completed' | 'statement_failed' | 'transaction_added' | 'group_invite' | 'group_joined';
@@ -46,39 +74,75 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   // This prevents regenerating notifications when app reopens
   const [acknowledgedStatements, setAcknowledgedStatements] = useState<Set<string>>(new Set());
   const [acknowledgedStatementsLoaded, setAcknowledgedStatementsLoaded] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
-  // Load acknowledged statements from SecureStore on mount
+  // Clear all notifications and state when user changes
   useEffect(() => {
+    const userId = user?.id || null;
+    
+    // If user changed (different user logged in), clear everything
+    if (currentUserId !== null && currentUserId !== userId) {
+      console.log('User changed, clearing all notifications and state');
+      setNotifications([]);
+      setStatementStatusMap(new Map());
+      setProcessedTransactionIds(new Set());
+      setAcknowledgedStatements(new Set());
+      setAcknowledgedStatementsLoaded(false);
+      
+      // Clear acknowledged statements from SecureStore for previous user
+      SecureStore.deleteItemAsync(ACKNOWLEDGED_STATEMENTS_KEY).catch(err => {
+        console.error('Error clearing acknowledged statements:', err);
+      });
+    }
+    
+    // Update current user ID
+    setCurrentUserId(userId);
+  }, [user?.id, currentUserId]);
+
+  // Load acknowledged statements from SecureStore for current user
+  useEffect(() => {
+    if (!user?.id) {
+      setAcknowledgedStatementsLoaded(true);
+      return;
+    }
+
     const loadAcknowledgedStatements = async () => {
       try {
-        const stored = await SecureStore.getItemAsync(ACKNOWLEDGED_STATEMENTS_KEY);
+        // Use user-specific key to store acknowledged statements per user
+        const userSpecificKey = `${ACKNOWLEDGED_STATEMENTS_KEY}_${user.id}`;
+        const stored = await SecureStore.getItemAsync(userSpecificKey);
         if (stored) {
           const parsed = JSON.parse(stored) as string[];
           setAcknowledgedStatements(new Set(parsed));
+        } else {
+          setAcknowledgedStatements(new Set());
         }
       } catch (error) {
         console.error('Error loading acknowledged statements:', error);
+        setAcknowledgedStatements(new Set());
       } finally {
         setAcknowledgedStatementsLoaded(true);
       }
     };
     loadAcknowledgedStatements();
-  }, []);
+  }, [user?.id]);
 
-  // Save acknowledged statements to SecureStore whenever it changes
+  // Save acknowledged statements to SecureStore whenever it changes (user-specific)
   useEffect(() => {
-    if (!acknowledgedStatementsLoaded) return; // Don't save until we've loaded
+    if (!acknowledgedStatementsLoaded || !user?.id) return; // Don't save until we've loaded and have a user
     
     const saveAcknowledgedStatements = async () => {
       try {
+        // Use user-specific key to store acknowledged statements per user
+        const userSpecificKey = `${ACKNOWLEDGED_STATEMENTS_KEY}_${user.id}`;
         const array = Array.from(acknowledgedStatements);
-        await SecureStore.setItemAsync(ACKNOWLEDGED_STATEMENTS_KEY, JSON.stringify(array));
+        await SecureStore.setItemAsync(userSpecificKey, JSON.stringify(array));
       } catch (error) {
         console.error('Error saving acknowledged statements:', error);
       }
     };
     saveAcknowledgedStatements();
-  }, [acknowledgedStatements, acknowledgedStatementsLoaded]);
+  }, [acknowledgedStatements, acknowledgedStatementsLoaded, user?.id]);
 
   // Fetch statements and transactions
   const { data: statements = [] } = useStatements(user?.id || '');
@@ -101,15 +165,19 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
   useNotificationsRealtime(user?.id || '', handleNewDatabaseNotification);
 
-  // Generate notifications from statements
+  // Generate notifications from statements (only for current user)
   useEffect(() => {
-    if (!user || !statements.length || !acknowledgedStatementsLoaded) return;
+    if (!user || !user.id || !statements.length || !acknowledgedStatementsLoaded) return;
+    
+    // Filter statements to only include those belonging to current user
+    const userStatements = statements.filter((stmt: StatementImport) => stmt.user_id === user.id);
+    if (!userStatements.length) return;
 
     setNotifications(prev => {
       const newNotifications: Notification[] = [];
       const currentNotificationIds = new Set(prev.map(n => n.id));
 
-      statements.forEach((statement: StatementImport) => {
+      userStatements.forEach((statement: StatementImport) => {
         const previousStatus = statementStatusMap.get(statement.id);
         const currentStatus = statement.status;
 
@@ -145,8 +213,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
             id: `stmt_uploaded_${statement.id}`,
             type: 'statement_uploaded',
             title: 'Statement Uploaded',
-            message: 'Your bank statement has been uploaded successfully. Processing will begin shortly.',
-            timestamp: new Date(statement.created_at),
+            message: 'Your bank statement was uploaded. We\'ll start processing it shortly.',
+            timestamp: parseTimestamp(statement.created_at),
             read: false,
             relatedId: statement.id,
           };
@@ -156,8 +224,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
             id: `stmt_processing_${statement.id}`,
             type: 'statement_processing',
             title: 'Statement Processing',
-            message: 'Your bank statement is being processed. This may take 10-15 minutes.',
-            timestamp: new Date(statement.created_at),
+            message: 'We\'re categorising your statement. This usually takes 5–10 minutes.',
+            timestamp: parseTimestamp(statement.created_at),
             read: false,
             relatedId: statement.id,
           };
@@ -167,8 +235,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
             id: `stmt_completed_${statement.id}`,
             type: 'statement_completed',
             title: 'Statement Processed',
-            message: 'Your bank statement has been processed successfully. Transactions have been imported.',
-            timestamp: new Date(statement.processed_at || statement.created_at),
+            message: 'We\'ve imported all transactions from your statement. Tap to review.',
+            timestamp: parseTimestamp(statement.processed_at || statement.created_at),
             read: false,
             relatedId: statement.id,
           };
@@ -178,8 +246,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
             id: `stmt_failed_${statement.id}`,
             type: 'statement_failed',
             title: 'Statement Processing Failed',
-            message: statement.error || 'Failed to process your bank statement. Please try uploading again.',
-            timestamp: new Date(statement.created_at),
+            message: statement.error || 'We couldn\'t process your statement. Tap to retry.',
+            timestamp: parseTimestamp(statement.created_at),
             read: false,
             relatedId: statement.id,
           };
@@ -201,18 +269,21 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       // No new notifications, return previous state
       return prev;
     });
-  }, [statements, user, statementStatusMap, acknowledgedStatements, acknowledgedStatementsLoaded]);
+  }, [statements, user?.id, statementStatusMap, acknowledgedStatements, acknowledgedStatementsLoaded]);
 
-  // Generate notifications for manual transactions (only recent ones)
+  // Generate notifications for manual transactions (only recent ones, only for current user)
   useEffect(() => {
-    if (!user || !transactions.length) return;
+    if (!user || !user.id || !transactions.length) return;
 
-    const manualTransactions = transactions.filter(
-      tx => tx.source === 'manual' && 
+    // Filter transactions to only include those belonging to current user
+    const userTransactions = transactions.filter(
+      tx => tx.user_id === user.id && tx.source === 'manual' && 
       moment(tx.created_at).isAfter(moment().subtract(1, 'hour'))
     );
+    
+    if (!userTransactions.length) return;
 
-    manualTransactions.forEach(transaction => {
+    userTransactions.forEach(transaction => {
       // Skip if we've already processed this transaction
       if (processedTransactionIds.has(transaction.id)) return;
 
@@ -220,8 +291,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         id: `txn_added_${transaction.id}`,
         type: 'transaction_added',
         title: 'Transaction Added',
-        message: `Manual transaction of ₹${Math.abs(transaction.amount).toLocaleString('en-IN')} has been added successfully.`,
-        timestamp: new Date(transaction.created_at),
+        message: `Manual transaction of ₹${Math.abs(transaction.amount).toLocaleString('en-IN')} was added.`,
+        timestamp: parseTimestamp(transaction.created_at),
         read: false,
         relatedId: transaction.id,
       };
@@ -234,20 +305,27 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
       setProcessedTransactionIds(prev => new Set(prev).add(transaction.id));
     });
-  }, [transactions, user, processedTransactionIds]);
+  }, [transactions, user?.id, processedTransactionIds]);
 
-  // Convert database notifications to app notifications format
+  // Convert database notifications to app notifications format (only for current user)
   useEffect(() => {
-    if (!databaseNotifications.length) return;
+    if (!user?.id || !databaseNotifications.length) return;
+    
+    // Filter database notifications to only include those for current user
+    const userDatabaseNotifications = databaseNotifications.filter(
+      dbNotif => dbNotif.user_id === user.id
+    );
+    
+    if (!userDatabaseNotifications.length) return;
 
-    const dbNotifications: Notification[] = databaseNotifications
+    const dbNotifications: Notification[] = userDatabaseNotifications
       .filter(dbNotif => dbNotif.status === 'unread' || dbNotif.status === 'read')
       .map(dbNotif => ({
         id: `db_${dbNotif.id}`,
         type: dbNotif.type as 'group_invite' | 'group_joined',
         title: dbNotif.title,
         message: dbNotif.message,
-        timestamp: new Date(dbNotif.created_at),
+        timestamp: parseTimestamp(dbNotif.created_at),
         read: dbNotif.status === 'read',
         data: dbNotif.data || undefined, // Convert null to undefined
       }));
@@ -259,22 +337,32 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       const merged = [...prev.filter(n => !n.id.startsWith('db_')), ...uniqueNew];
       return merged.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
     });
-  }, [databaseNotifications]);
+  }, [databaseNotifications, user?.id]);
 
   const markAsRead = useCallback((notificationId: string) => {
+    console.log('markAsRead called for:', notificationId);
     // If it's a database notification, mark it as read in the database
     if (notificationId.startsWith('db_')) {
       const dbId = notificationId.replace('db_', '');
       // This will be handled by the component that uses the notification
       // For now, just update local state
-      setNotifications(prev =>
-        prev.map(n => (n.id === notificationId ? { ...n, read: true } : n))
-      );
+      setNotifications(prev => {
+        const updated = prev.map(n => {
+          if (n.id === notificationId) {
+            console.log('Updating notification:', n.id, 'from read:', n.read, 'to read: true');
+            return { ...n, read: true };
+          }
+          return n;
+        });
+        console.log('Updated notifications count:', updated.length, 'Updated notification found:', updated.find(n => n.id === notificationId)?.read);
+        return updated;
+      });
     } else {
       // Local notification
       setNotifications(prev => {
         const notification = prev.find(n => n.id === notificationId);
         if (notification) {
+          console.log('Found notification to mark as read:', notification.id, 'current read:', notification.read);
           // If this is a statement notification, mark the statement as acknowledged
           // This prevents regenerating the notification when app reopens
           if (notification.relatedId && (notificationId.startsWith('stmt_uploaded_') || 
@@ -290,7 +378,15 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
             }
           }
         }
-        return prev.map(n => (n.id === notificationId ? { ...n, read: true } : n));
+        const updated = prev.map(n => {
+          if (n.id === notificationId) {
+            console.log('Updating notification:', n.id, 'from read:', n.read, 'to read: true');
+            return { ...n, read: true };
+          }
+          return n;
+        });
+        console.log('Updated notifications count:', updated.length, 'Updated notification found:', updated.find(n => n.id === notificationId)?.read);
+        return updated;
       });
     }
   }, []);
@@ -344,13 +440,16 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     setStatementStatusMap(new Map());
     setProcessedTransactionIds(new Set());
     setAcknowledgedStatements(new Set());
-    // Also clear from SecureStore
-    try {
-      await SecureStore.deleteItemAsync(ACKNOWLEDGED_STATEMENTS_KEY);
-    } catch (error) {
-      console.error('Error clearing acknowledged statements:', error);
+    // Also clear from SecureStore (user-specific)
+    if (user?.id) {
+      try {
+        const userSpecificKey = `${ACKNOWLEDGED_STATEMENTS_KEY}_${user.id}`;
+        await SecureStore.deleteItemAsync(userSpecificKey);
+      } catch (error) {
+        console.error('Error clearing acknowledged statements:', error);
+      }
     }
-  }, []);
+  }, [user?.id]);
 
   const unreadCount = notifications.filter(n => !n.read).length;
 

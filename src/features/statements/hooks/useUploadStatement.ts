@@ -41,7 +41,7 @@ export function useUploadStatement() {
   }) => {
     // Similar to Next.js approach: notify backend but don't fail upload if it fails
     try {
-      const response = await fetch('https://statement-classifier-python-2.onrender.com/classifier', {
+      const response = await fetch('https://personal-finance-manager-python.onrender.com/classifier', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -163,7 +163,9 @@ export function useUploadStatement() {
 
       if (dbError) throw dbError;
 
-      // Notify backend and update status to 'processing' if successful
+      // Notify backend (it will set status to 'processing' then 'completed' or 'failed')
+      // Do NOT update status here: backend already updates to 'processing' on receive and
+      // to 'completed' when done. Updating here would overwrite 'completed' back to 'processing'.
       notifyBackend({
         import_id: importRecord.id,
         user_id: userId,
@@ -172,19 +174,9 @@ export function useUploadStatement() {
         client_id: userId,
         signed_url: signedUrl,
          accountant_id: null 
-      })
-        .then(async () => {
-          // Update status to 'processing' after successfully notifying backend
-          await supabase
-            .from('statement_imports')
-            .update({ status: 'processing' })
-            .eq('id', importRecord.id);
-        })
-        .catch((error) => {
-          // Log error but don't fail the upload
-          console.error('Backend notification failed (non-blocking):', error);
-          // Status remains 'uploaded' if backend notification fails
-        });
+      }).catch((error) => {
+        console.error('Backend notification failed (non-blocking):', error);
+      });
 
       // Return immediately - don't wait for backend notification
       return importRecord;

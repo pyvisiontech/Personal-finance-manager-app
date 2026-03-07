@@ -1,13 +1,19 @@
 import React, { useState } from 'react';
 import { TouchableOpacity, View, Text, StyleSheet, Modal, ScrollView, FlatList, Alert } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { useNotifications } from '../../../context/NotificationContext';
 import { useNotificationActions } from '../../notifications/hooks/useNotificationActions';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../../../navigation/types';
 import moment from 'moment';
 
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+
 export function NotificationIcon() {
+  const navigation = useNavigation<NavigationProp>();
   const { notifications, unreadCount } = useNotifications();
-  const { handleNotificationPress, handleMarkAllAsRead, handleDismiss } = useNotificationActions();
+  const { handleNotificationPress, handleMarkAllAsRead, handleDismiss } = useNotificationActions(navigation);
   const [modalVisible, setModalVisible] = useState(false);
 
   const getNotificationIcon = (type: string) => {

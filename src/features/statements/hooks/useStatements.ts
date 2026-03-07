@@ -33,20 +33,18 @@ export function useStatements(userId: string) {
       }
     },
     enabled: !!userId,
-    // Automatically refetch every 5 seconds if there are statements still processing
+    staleTime: 0, // Always refetch from server when polling so we see "Completed" as soon as backend updates
     refetchInterval: (query) => {
       const statements = query.state.data as StatementImport[] | undefined;
       if (!statements || statements.length === 0) return false;
-      
-      // Check if any statement is still processing or uploaded (waiting to be processed)
+
       const hasProcessingStatements = statements.some(
         (stmt) => stmt.status === 'processing' || stmt.status === 'uploaded'
       );
-      
-      // Poll every 5 seconds if there are processing statements, otherwise don't poll
-      return hasProcessingStatements ? 5000 : false;
+
+      return hasProcessingStatements ? 2000 : false; // Poll every 2s while any statement is in progress
     },
-    // Refetch when the screen comes into focus
+    refetchOnMount: true,
     refetchOnWindowFocus: true,
   });
 }

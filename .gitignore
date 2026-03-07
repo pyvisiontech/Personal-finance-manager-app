@@ -62,6 +62,10 @@ Thumbs.db
 *.md
 *.sql
 
+# Local scripts and assets (do not push)
+convert-logo.js
+assets/logo-v3.svg
+
 # Testing
 /coverage/
 

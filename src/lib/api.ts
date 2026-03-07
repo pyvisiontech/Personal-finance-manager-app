@@ -1,7 +1,7 @@
 // API client for Python backend using fetch
 import { supabase } from './supabase';
 
-const API_BASE_URL = 'https://statement-classifier-python-2.onrender.com';
+const API_BASE_URL = 'https://personal-finance-manager-python.onrender.com';
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
