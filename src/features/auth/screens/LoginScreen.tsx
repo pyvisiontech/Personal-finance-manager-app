@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -157,7 +157,26 @@ export function LoginScreen({ navigation }: any) {
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
   const [otpError, setOtpError] = useState('');
-  const { signInWithOtp, verifyOtp, signInWithGoogle } = useAuth();
+  const { signInWithOtp, verifyOtp, signInWithGoogle, user } = useAuth();
+  const googleSignInTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Clear timeout when user successfully signs in
+  useEffect(() => {
+    if (user && googleSignInTimeoutRef.current) {
+      clearTimeout(googleSignInTimeoutRef.current);
+      googleSignInTimeoutRef.current = null;
+      setLoading(false);
+    }
+  }, [user]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (googleSignInTimeoutRef.current) {
+        clearTimeout(googleSignInTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleContinue = async () => {
     if (!email) {
@@ -227,28 +246,39 @@ export function LoginScreen({ navigation }: any) {
   };
 
   const handleGoogleSignIn = async () => {
+    // Clear any existing timeout
+    if (googleSignInTimeoutRef.current) {
+      clearTimeout(googleSignInTimeoutRef.current);
+      googleSignInTimeoutRef.current = null;
+    }
+
     setLoading(true);
-    let timeoutId: NodeJS.Timeout | null = null;
 
     try {
       const { error } = await signInWithGoogle();
       if (error) {
-        if (timeoutId) clearTimeout(timeoutId);
         setLoading(false);
         Alert.alert('Error', error.message || 'Google sign in failed');
         return;
       }
 
       // Set a timeout to stop loading if auth doesn't complete within 30 seconds
-      timeoutId = setTimeout(() => {
-        setLoading(false);
-        Alert.alert('Timeout', 'Sign-in is taking longer than expected. Please try again.');
+      googleSignInTimeoutRef.current = setTimeout(() => {
+        // Only show timeout if user is still not signed in
+        if (!user) {
+          setLoading(false);
+          Alert.alert('Timeout', 'Sign-in is taking longer than expected. Please try again.');
+        }
+        googleSignInTimeoutRef.current = null;
       }, 30000);
 
       // Auth state change will handle setting loading to false and navigation
-      // The timeout will be cleared when component unmounts (which happens after successful auth)
+      // The timeout will be cleared by useEffect when user signs in successfully
     } catch (error: any) {
-      if (timeoutId) clearTimeout(timeoutId);
+      if (googleSignInTimeoutRef.current) {
+        clearTimeout(googleSignInTimeoutRef.current);
+        googleSignInTimeoutRef.current = null;
+      }
       setLoading(false);
       Alert.alert('Error', error.message || 'Google sign in failed');
     }

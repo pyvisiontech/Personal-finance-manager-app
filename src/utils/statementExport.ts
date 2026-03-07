@@ -3,6 +3,8 @@ import { TransactionWithCategory } from '../lib/types';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import JSZip from 'jszip';
+import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 /**
  * Fetches all transactions for a specific statement
@@ -460,9 +462,6 @@ export async function downloadStatementExcel(
  * Android: Uses Storage Access Framework to save to user-selected folder
  * iOS: Saves to app documents (accessible via Files app)
  */
-import { Platform } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
 export async function saveStatementToDevice(
   fileUri: string,
   fileName: string,

@@ -76,6 +76,9 @@ export function ProfileMenu() {
         case 'faq':
           navigation.navigate('HomeTab', { screen: 'FAQ' });
           break;
+        case 'feedback':
+          navigation.navigate('HomeTab', { screen: 'Feedback' });
+          break;
         case 'logout':
           handleLogout();
           break;
@@ -229,6 +232,20 @@ export function ProfileMenu() {
                       <MaterialIcons name="help-outline" size={20} color="#10B981" />
                     </View>
                     <Text style={styles.menuItemText}>FAQ</Text>
+                  </View>
+                  <MaterialIcons name="chevron-right" size={20} color="#9CA3AF" />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={() => handleMenuOption('feedback')}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.menuItemLeft}>
+                    <View style={[styles.menuIconContainer, { backgroundColor: '#FEF3C7' }]}>
+                      <MaterialIcons name="feedback" size={20} color="#F59E0B" />
+                    </View>
+                    <Text style={styles.menuItemText}>Feedback</Text>
                   </View>
                   <MaterialIcons name="chevron-right" size={20} color="#9CA3AF" />
                 </TouchableOpacity>
