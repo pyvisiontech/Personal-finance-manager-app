@@ -192,11 +192,17 @@ export function StatementsListScreen() {
 
       }
 
-      // Call backend to process the statement
+      // Call backend to process the statement (JWT required)
+      await supabase.auth.refreshSession();
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('Not logged in. Please sign in again.');
+      }
       const response = await fetch('https://personal-finance-manager-python.onrender.com/classifier', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token ?? ''}`,
         },
         body: JSON.stringify({
           import_id: statement.id,

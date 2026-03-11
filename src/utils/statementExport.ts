@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase';
+import { api } from '../lib/api';
 import { TransactionWithCategory } from '../lib/types';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
@@ -7,75 +7,19 @@ import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 /**
- * Fetches all transactions for a specific statement
+ * Fetches all transactions for a specific statement (decrypted via backend GET /transactions?statement_id=).
  */
 export async function fetchStatementTransactions(
-  userId: string,
+  _userId: string,
   statementId: string,
-  statementCreatedAt: string,
-  statementProcessedAt: string | null
+  _statementCreatedAt: string,
+  _statementProcessedAt: string | null
 ): Promise<TransactionWithCategory[]> {
   try {
-    // Use many-to-many relationship via statement_transactions junction table
-    // This allows transactions to belong to multiple statements
-    const { data: junctionData, error: junctionError } = await supabase
-      .from('statement_transactions')
-      .select(`
-        transaction:transaction_id (
-          *,
-          category_user:category_user_id (
-            id,
-            name,
-            icon
-          ),
-          category_ai:category_ai_id (
-            id,
-            name,
-            icon
-          )
-        )
-      `)
-      .eq('statement_import_id', statementId);
-
-    if (junctionError) {
-      console.error('Error fetching statement transactions:', junctionError);
-      throw new Error(`Failed to fetch transactions: ${junctionError.message}`);
-    }
-
-    if (!junctionData || junctionData.length === 0) {
-      console.log(`No transactions found for statement ${statementId}`);
-      return [];
-    }
-
-    // Supabase returns: [{ transaction: TransactionWithCategory }, ...]
-    // Type-safe extraction with proper filtering
-    const transactions: TransactionWithCategory[] = [];
-
-    for (const item of junctionData) {
-      const transaction = item.transaction;
-
-      // Type guard: ensure transaction exists and matches our criteria
-      if (
-        transaction &&
-        typeof transaction === 'object' &&
-        'id' in transaction &&
-        'user_id' in transaction &&
-        'source' in transaction &&
-        transaction.user_id === userId &&
-        transaction.source === 'statement'
-      ) {
-        // Safe type assertion: transaction comes from Supabase with all required fields
-        transactions.push(transaction as unknown as TransactionWithCategory);
-      }
-    }
-
-    console.log(`Found ${transactions.length} transactions for statement ${statementId} (using junction table)`);
-
-    // Sort by occurred_at descending
-    transactions.sort((a, b) =>
-      new Date(b.occurred_at).getTime() - new Date(a.occurred_at).getTime()
-    );
-
+    const data = await api.get<TransactionWithCategory[]>(`/transactions?statement_id=${encodeURIComponent(statementId)}`);
+    const transactions = Array.isArray(data) ? data : [];
+    console.log(`Found ${transactions.length} transactions for statement ${statementId}`);
+    // Backend returns already sorted by occurred_at desc
     return transactions;
   } catch (error) {
     console.error('Error in fetchStatementTransactions:', error);
