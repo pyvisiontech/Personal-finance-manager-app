@@ -98,3 +98,5 @@ DerivedData
 *.ipa
 *.xcuserstate
 ios/.xcode.env.local
+
+fix-images.js
