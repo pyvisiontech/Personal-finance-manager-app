@@ -1,6 +1,17 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '../../../lib/supabase';
+import { api } from '../../../lib/api';
 import { Transaction, TransactionWithCategory } from '../../../lib/types';
+
+/** Build query string for GET /transactions (backend decrypts raw_description). */
+function transactionsQueryParams(filters?: { startDate?: string; endDate?: string; categoryId?: string }, groupId?: string): string {
+  const params = new URLSearchParams();
+  if (filters?.startDate) params.set('start_date', filters.startDate);
+  if (filters?.endDate) params.set('end_date', filters.endDate);
+  if (filters?.categoryId) params.set('category_id', filters.categoryId);
+  if (groupId) params.set('group_id', groupId);
+  const q = params.toString();
+  return q ? `?${q}` : '';
+}
 
 export function useTransactions(userId: string, filters?: { startDate?: string; endDate?: string; categoryId?: string }) {
   return useQuery({
@@ -12,59 +23,17 @@ export function useTransactions(userId: string, filters?: { startDate?: string; 
       }
 
       console.log('Fetching transactions with filters:', { userId, filters });
-      
-      try {
-        let query = supabase
-          .from('transactions')
-          .select(`
-            *,
-            category_user:category_user_id ( 
-              id,
-              name,
-              icon
-            ),
-            category_ai:category_ai_id (
-              id,
-              name,
-              icon
-            )
-          `)
-          .eq('user_id', userId)
-          .order('occurred_at', { ascending: false });
-
-        if (filters?.startDate) {
-          console.log('Applying start date filter:', filters.startDate);
-          query = query.gte('occurred_at', filters.startDate);
-        }
-        if (filters?.endDate) {
-          console.log('Applying end date filter:', filters.endDate);
-          query = query.lte('occurred_at', filters.endDate);
-        }
-        if (filters?.categoryId) {
-          console.log('Applying category filter:', filters.categoryId);
-          query = query.eq('category_user_id', filters.categoryId);
-        }
-
-        const { data, error, status, statusText } = await query;
-        console.log('Query response:', { status, statusText, data: data?.length, error });
-        
-        if (error) {
-          console.error('Supabase query error:', error);
-          throw new Error(error.message || 'Failed to fetch transactions');
-        }
-        
-        return data as TransactionWithCategory[];
-      } catch (error) {
-        console.error('Error in useTransactions queryFn:', error);
-        throw error;
-      }
+      const path = `/transactions${transactionsQueryParams(filters)}`;
+      const data = await api.get<TransactionWithCategory[]>(path);
+      console.log('Transactions response:', Array.isArray(data) ? data.length : 0);
+      return Array.isArray(data) ? data : [];
     },
-    enabled: !!userId, // Only run the query if userId exists
-    retry: 2, // Retry failed requests twice before showing an error
-    staleTime: Infinity, // Never become stale; refetch only via explicit invalidation (e.g., on add/edit/delete)
-    gcTime: 1000 * 60 * 10, // Keep unused data in cache for 10 minutes (formerly cacheTime)
-    refetchOnMount: false, // Don't refetch when component mounts if data exists
-    refetchOnWindowFocus: false, // Don't refetch when window regains focus
-    refetchOnReconnect: false, // Don't refetch on reconnect
+    enabled: !!userId,
+    retry: 2,
+    staleTime: Infinity,
+    gcTime: 1000 * 60 * 10,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 }

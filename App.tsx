@@ -17,7 +17,13 @@ import {
   ActivityIndicator,
   Image
 } from 'react-native';
+import * as SplashScreen from 'expo-splash-screen';
 import './global.css';
+
+// Keep the splash screen visible while we fetch resources
+SplashScreen.preventAutoHideAsync().catch(() => {
+  /* reloading the app might cause some inconsistencies with the splash screen, so we ignore errors here */
+});
 
 // Enable className prop for React Native components
 cssInterop(View, { className: 'style' });

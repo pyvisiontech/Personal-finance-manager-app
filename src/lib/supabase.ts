@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import * as SecureStore from 'expo-secure-store';
+import { secureGetItem, secureSetItem, secureDeleteItem } from './storage';
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
@@ -8,22 +8,22 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables. Check your .env file.');
 }
 
-// Custom storage adapter for Expo SecureStore
-const ExpoSecureStoreAdapter = {
+// Custom storage adapter that works on native (SecureStore) and web (localStorage)
+const CrossPlatformAuthStorage = {
   getItem: async (key: string) => {
-    return await SecureStore.getItemAsync(key);
+    return await secureGetItem(key);
   },
   setItem: async (key: string, value: string) => {
-    await SecureStore.setItemAsync(key, value);
+    await secureSetItem(key, value);
   },
   removeItem: async (key: string) => {
-    await SecureStore.deleteItemAsync(key);
+    await secureDeleteItem(key);
   },
 };
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    storage: ExpoSecureStoreAdapter,
+    storage: CrossPlatformAuthStorage,
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: true, // Enable to detect OAuth callbacks in URL

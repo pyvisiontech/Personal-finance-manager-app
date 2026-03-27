@@ -39,13 +39,17 @@ export function useUploadStatement() {
     signed_url: string;
      accountant_id: null 
   }) => {
-    // Similar to Next.js approach: notify backend but don't fail upload if it fails
     try {
+      await supabase.auth.refreshSession();
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('Not logged in. Please sign in again.');
+      }
       const response = await fetch('https://personal-finance-manager-python.onrender.com/classifier', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-
+          'Authorization': `Bearer ${session?.access_token ?? ''}`,
         },
         body: JSON.stringify(payload),
       });

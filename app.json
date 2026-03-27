@@ -1,20 +1,20 @@
 {
   "expo": {
-    "name": "personal-finance-tracker",
+    "name": "MoneyMitra",
     "slug": "personal-finance-tracker",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/new-logo.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/new-logo.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/new-logo.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
@@ -29,7 +29,7 @@
       "bundleIdentifier": "com.rajaramsingh.personalfinancetracker"
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/new-logo.png"
     },
     "scheme": "personalfinancetracker",
     "plugins": [
@@ -40,8 +40,9 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "1643c64d-bed3-409b-b78e-92babc7be0b1"
+        "projectId": "7667ce3d-b412-41f3-8b3d-81072788e3da"
       }
-    }
+    },
+    "owner": "pyvisiontech"
   }
 }

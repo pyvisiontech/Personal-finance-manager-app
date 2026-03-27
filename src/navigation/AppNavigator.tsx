@@ -4,6 +4,8 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useAuth } from '../context/AuthContext';
 import { useGroupContext } from '../context/GroupContext';
+import * as SplashScreen from 'expo-splash-screen';
+import { Image } from 'react-native';
 import { LoginScreen } from '../features/auth/screens/LoginScreen';
 import { SignUpScreen } from '../features/auth/screens/SignUpScreen';
 import DashboardScreen from '../features/dashboard/screens/DashboardScreen';
@@ -263,14 +265,32 @@ function OnboardingNavigator() {
 }
 
 export function AppNavigator() {
-  const { user, loading, needsProfileCompletion } = useAuth();
+  const { user, loading, needsProfileCompletion, authReady } = useAuth();
 
   // Only block on the initial bootstrap when no user is present.
   // If a user exists, render immediately to avoid a stuck loading screen.
+  React.useEffect(() => {
+    if (!loading || authReady) {
+      // Small timeout ensures the transition view is mounted before hiding native splash
+      const timer = setTimeout(async () => {
+        try {
+          await SplashScreen.hideAsync();
+        } catch (e) {
+          console.warn('Failed to hide splash screen:', e);
+        }
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+  }, [loading, authReady]);
+
   if (loading && !user) {
     return (
-      <View className="flex-1 justify-center items-center">
-        <Text>Loading...</Text>
+      <View style={{ flex: 1, backgroundColor: '#ffffff', justifyContent: 'center', alignItems: 'center' }}>
+        <Image 
+          source={require('../../assets/splash-icon-v5.png')}
+          style={{ width: 200, height: 200 }}
+          resizeMode="contain"
+        />
       </View>
     );
   }

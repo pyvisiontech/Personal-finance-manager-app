@@ -75,29 +75,29 @@ export function StatementsListScreen() {
     return () => subscription.remove();
   }, [refetch]);
 
-  // Automatically process statements with "uploaded" status when they appear
+  // Automatically process statements that are *stuck* in "uploaded" (e.g. notifyBackend failed).
+  // Do NOT auto-process recently uploaded statements: the upload flow already calls /classifier
+  // (notifyBackend). Processing them again here caused status to flip: completed → processing → completed.
+  const STUCK_UPLOADED_THRESHOLD_MINUTES = 2;
   const processedStatementsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (!user?.id || !statements || statements.length === 0) return;
 
-    const uploadedStatements = statements.filter(
-      (s) => s.status === 'uploaded' && !processedStatementsRef.current.has(s.id)
-    );
+    const now = moment();
+    const uploadedStatements = statements.filter((s) => {
+      if (s.status !== 'uploaded' || processedStatementsRef.current.has(s.id)) return false;
+      // Only process if created more than STUCK_UPLOADED_THRESHOLD_MINUTES ago (stuck upload)
+      const createdAt = moment(s.created_at);
+      return now.diff(createdAt, 'minutes', true) >= STUCK_UPLOADED_THRESHOLD_MINUTES;
+    });
 
     uploadedStatements.forEach((statement) => {
-      // Mark as being processed to avoid duplicate calls
       processedStatementsRef.current.add(statement.id);
 
-      // Automatically trigger processing for uploaded statements (silent mode)
       reprocessStatement(statement, true)
-        .then(() => {
-          // Refetch to update status
-          refetch();
-        })
-        .catch((error) => {
-
-          // Remove from processed set so it can be retried
+        .then(() => refetch())
+        .catch(() => {
           processedStatementsRef.current.delete(statement.id);
         });
     });
@@ -192,11 +192,17 @@ export function StatementsListScreen() {
 
       }
 
-      // Call backend to process the statement
+      // Call backend to process the statement (JWT required)
+      await supabase.auth.refreshSession();
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('Not logged in. Please sign in again.');
+      }
       const response = await fetch('https://personal-finance-manager-python.onrender.com/classifier', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token ?? ''}`,
         },
         body: JSON.stringify({
           import_id: statement.id,

@@ -5,7 +5,7 @@ import { useTransactions } from '../features/transactions/hooks/useTransactions'
 import { StatementImport } from '../lib/types';
 import { useNotifications as useDatabaseNotifications, useNotificationsRealtime } from '../features/notifications/hooks/useNotifications';
 import { Notification as DatabaseNotification } from '../lib/types';
-import * as SecureStore from 'expo-secure-store';
+import { secureGetItem, secureSetItem, secureDeleteItem } from '../lib/storage';
 import moment from 'moment';
 
 
@@ -89,8 +89,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       setAcknowledgedStatements(new Set());
       setAcknowledgedStatementsLoaded(false);
       
-      // Clear acknowledged statements from SecureStore for previous user
-      SecureStore.deleteItemAsync(ACKNOWLEDGED_STATEMENTS_KEY).catch(err => {
+      // Clear acknowledged statements for previous user
+      secureDeleteItem(ACKNOWLEDGED_STATEMENTS_KEY).catch(err => {
         console.error('Error clearing acknowledged statements:', err);
       });
     }
@@ -110,7 +110,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       try {
         // Use user-specific key to store acknowledged statements per user
         const userSpecificKey = `${ACKNOWLEDGED_STATEMENTS_KEY}_${user.id}`;
-        const stored = await SecureStore.getItemAsync(userSpecificKey);
+        const stored = await secureGetItem(userSpecificKey);
         if (stored) {
           const parsed = JSON.parse(stored) as string[];
           setAcknowledgedStatements(new Set(parsed));
@@ -136,7 +136,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         // Use user-specific key to store acknowledged statements per user
         const userSpecificKey = `${ACKNOWLEDGED_STATEMENTS_KEY}_${user.id}`;
         const array = Array.from(acknowledgedStatements);
-        await SecureStore.setItemAsync(userSpecificKey, JSON.stringify(array));
+        await secureSetItem(userSpecificKey, JSON.stringify(array));
       } catch (error) {
         console.error('Error saving acknowledged statements:', error);
       }
@@ -440,11 +440,11 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     setStatementStatusMap(new Map());
     setProcessedTransactionIds(new Set());
     setAcknowledgedStatements(new Set());
-    // Also clear from SecureStore (user-specific)
+    // Also clear from storage (user-specific)
     if (user?.id) {
       try {
         const userSpecificKey = `${ACKNOWLEDGED_STATEMENTS_KEY}_${user.id}`;
-        await SecureStore.deleteItemAsync(userSpecificKey);
+        await secureDeleteItem(userSpecificKey);
       } catch (error) {
         console.error('Error clearing acknowledged statements:', error);
       }

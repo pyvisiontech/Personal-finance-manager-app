@@ -131,7 +131,7 @@ export function FAQScreen() {
           <MaterialIcons name="help-outline" size={48} color="#007a33" />
           <Text style={styles.introTitle}>How can we help you?</Text>
           <Text style={styles.introText}>
-            Find answers to common questions about using the Personal Finance Tracker app.
+            Find answers to common questions about using the MoneyMitra app.
           </Text>
         </View>
 
