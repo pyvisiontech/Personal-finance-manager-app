@@ -38,6 +38,7 @@ export type StatementsStackParamList = {
 export type AuthStackParamList = {
   Login: undefined;
   SignUp: undefined;
+  EmailConfirmation: { email: string };
 };
 
 // Onboarding Stack
@@ -50,6 +51,7 @@ export type RootStackParamList = {
   // Auth Stack
   Login: undefined;
   SignUp: undefined;
+  EmailConfirmation: { email: string };
   
   // Onboarding
   Welcome: undefined;

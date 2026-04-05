@@ -214,13 +214,13 @@ export function SignUpScreen({ navigation }: any) {
     try {
       const { error } = await signInWithOtp(email);
       if (error) {
-        Alert.alert('Error', error.message || 'Failed to send verification code');
+        Alert.alert('Error', error.message || 'Failed to send confirmation email');
         return;
       }
-      setStep('otp');
-      Alert.alert('Success', 'Verification code sent to your email');
+      // New users receive a confirmation link (not OTP) — show the confirmation screen
+      navigation.navigate('EmailConfirmation', { email });
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to send verification code');
+      Alert.alert('Error', error.message || 'Failed to send confirmation email');
     } finally {
       setLoading(false);
     }
