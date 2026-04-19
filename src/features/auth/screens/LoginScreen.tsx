@@ -157,6 +157,7 @@ export function LoginScreen({ navigation }: any) {
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
   const [otpError, setOtpError] = useState('');
+  const [emailError, setEmailError] = useState('');
   const { signInWithOtp, verifyOtp, signInWithGoogle, user } = useAuth();
   const googleSignInTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const signInSuccessRef = useRef<boolean>(false);
@@ -193,15 +194,30 @@ export function LoginScreen({ navigation }: any) {
       return;
     }
 
+    // Clear any previous inline error
+    setEmailError('');
     setLoading(true);
     try {
-      const { error } = await signInWithOtp(email);
+      // shouldCreateUser: false — Login should never create new accounts
+      const { error } = await signInWithOtp(email, false);
       if (error) {
-        Alert.alert('Error', error.message || 'Failed to send verification code');
+        // Map Supabase "user not found" errors to an inline field error
+        const msg = error.message?.toLowerCase() || '';
+        if (
+          msg.includes('user not found') ||
+          msg.includes('email not found') ||
+          msg.includes('no user') ||
+          msg.includes('invalid login') ||
+          msg.includes('signup is disabled') ||
+          msg.includes('signups not allowed')
+        ) {
+          setEmailError('No account found with this email. Please sign up first.');
+        } else {
+          Alert.alert('Error', error.message || 'Failed to send verification code');
+        }
         return;
       }
       setStep('otp');
-      Alert.alert('Success', 'Verification code sent to your email');
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to send verification code');
     } finally {
@@ -316,12 +332,16 @@ export function LoginScreen({ navigation }: any) {
                   label="Email"
                   placeholder="Enter your email"
                   value={email}
-                  onChangeText={setEmail}
+                  onChangeText={(text) => {
+                    setEmail(text);
+                    if (emailError) setEmailError(''); // clear error as user types
+                  }}
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoComplete="email"
                   style={styles.input}
                   editable={!loading}
+                  error={emailError}
                 />
 
                 <Button

@@ -8,6 +8,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { Image } from 'react-native';
 import { LoginScreen } from '../features/auth/screens/LoginScreen';
 import { SignUpScreen } from '../features/auth/screens/SignUpScreen';
+import { EmailConfirmationScreen } from '../features/auth/screens/EmailConfirmationScreen';
 import DashboardScreen from '../features/dashboard/screens/DashboardScreen';
 import { WelcomeScreen } from '../features/onboarding/screens/WelcomeScreen';
 import { TransactionsListScreen } from '../features/transactions/screens/TransactionsListScreen';
@@ -41,6 +42,7 @@ function AuthNavigator() {
     <RootStack.Navigator screenOptions={{ headerShown: false }}>
       <RootStack.Screen name="Login" component={LoginScreen} />
       <RootStack.Screen name="SignUp" component={SignUpScreen} />
+      <RootStack.Screen name="EmailConfirmation" component={EmailConfirmationScreen} />
     </RootStack.Navigator>
   );
 }

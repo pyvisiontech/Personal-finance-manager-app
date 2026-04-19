@@ -33,7 +33,7 @@ interface AuthContextType {
   authReady: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (payload: SignUpPayload) => Promise<void>;
-  signInWithOtp: (email: string) => Promise<{ error: any }>;
+  signInWithOtp: (email: string, shouldCreateUser?: boolean) => Promise<{ error: any }>;
   verifyOtp: (email: string, token: string) => Promise<{ error: any }>;
   signInWithGoogle: () => Promise<{ error: any }>;
   completeProfile: (payload: {
@@ -312,11 +312,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const signInWithOtp = async (email: string) => {
+  const signInWithOtp = async (email: string, shouldCreateUser: boolean = true) => {
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        shouldCreateUser: true, // This allows signup via OTP
+        shouldCreateUser, // true for SignUp, false for Login
       },
     });
     return { error };
