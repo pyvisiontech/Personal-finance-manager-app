@@ -11,7 +11,6 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { MaterialIcons } from '@expo/vector-icons';
-import * as FileSystem from 'expo-file-system/legacy';
 import { useUploadStatement, usePickDocument } from '../hooks/useUploadStatement';
 import { useAuth } from '../../../context/AuthContext';
 import { RootStackParamList } from '../../../navigation/types';
@@ -21,10 +20,11 @@ export function UploadStatementScreen() {
   const { user } = useAuth();
   const uploadStatement = useUploadStatement();
   const pickDocument = usePickDocument();
-  const [selectedFile, setSelectedFile] = useState<{ 
-    uri: string; 
-    name: string; 
-    type: string 
+  const [selectedFile, setSelectedFile] = useState<{
+    uri: string;
+    name: string;
+    type: string;
+    size?: number;
   } | null>(null);
 
   // Keep tab bar visible but ensure proper styling
@@ -47,27 +47,20 @@ export function UploadStatementScreen() {
   const handlePickFile = async () => {
     const file = await pickDocument();
     if (file) {
-      // Check file size before setting it as selected
-      try {
-        const fileInfo = await FileSystem.getInfoAsync(file.uri);
-        if (fileInfo.exists && fileInfo.size !== undefined) {
-          const maxSizeInBytes = 2 * 1024 * 1024; // 2MB in bytes
-          const fileSizeInMB = (fileInfo.size / (1024 * 1024)).toFixed(2);
-          
-          if (fileInfo.size > maxSizeInBytes) {
-            Alert.alert(
-              'File Too Large',
-              `The selected file is ${fileSizeInMB} MB. Please select a file that is 2 MB or smaller.`,
-              [{ text: 'OK' }]
-            );
-            return;
-          }
+      // Check file size using the size returned by the document picker (works on all platforms)
+      if (file.size !== undefined) {
+        const maxSizeInBytes = 2 * 1024 * 1024; // 2MB
+        if (file.size > maxSizeInBytes) {
+          const fileSizeInMB = (file.size / (1024 * 1024)).toFixed(2);
+          Alert.alert(
+            'File Too Large',
+            `The selected file is ${fileSizeInMB} MB. Please select a file that is 2 MB or smaller.`,
+            [{ text: 'OK' }]
+          );
+          return;
         }
-        setSelectedFile(file);
-      } catch (error) {
-        console.error('Error checking file size:', error);
-        Alert.alert('Error', 'Could not read file information. Please try again.');
       }
+      setSelectedFile(file);
     }
   };
 
@@ -78,26 +71,18 @@ export function UploadStatementScreen() {
     }
 
     // Double-check file size before uploading (safety measure)
-    try {
-      const fileInfo = await FileSystem.getInfoAsync(selectedFile.uri);
-      if (fileInfo.exists && fileInfo.size !== undefined) {
-        const maxSizeInBytes = 2 * 1024 * 1024; // 2MB in bytes
-        const fileSizeInMB = (fileInfo.size / (1024 * 1024)).toFixed(2);
-        
-        if (fileInfo.size > maxSizeInBytes) {
-          Alert.alert(
-            'File Too Large',
-            `The selected file is ${fileSizeInMB} MB. Please select a file that is 2 MB or smaller.`,
-            [{ text: 'OK' }]
-          );
-          setSelectedFile(null);
-          return;
-        }
+    if (selectedFile.size !== undefined) {
+      const maxSizeInBytes = 2 * 1024 * 1024;
+      if (selectedFile.size > maxSizeInBytes) {
+        const fileSizeInMB = (selectedFile.size / (1024 * 1024)).toFixed(2);
+        Alert.alert(
+          'File Too Large',
+          `The selected file is ${fileSizeInMB} MB. Please select a file that is 2 MB or smaller.`,
+          [{ text: 'OK' }]
+        );
+        setSelectedFile(null);
+        return;
       }
-    } catch (error) {
-      console.error('Error checking file size:', error);
-      Alert.alert('Error', 'Could not verify file size. Please try again.');
-      return;
     }
 
     try {
@@ -106,6 +91,7 @@ export function UploadStatementScreen() {
         fileUri: selectedFile.uri,
         fileName: selectedFile.name,
         fileType: selectedFile.type,
+        fileSize: selectedFile.size,
       });
       Alert.alert(
         'Upload Successful! 📄',
@@ -147,7 +133,7 @@ export function UploadStatementScreen() {
 
       <View style={styles.card}>
         {!selectedFile ? (
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.uploadButton}
             onPress={handlePickFile}
           >

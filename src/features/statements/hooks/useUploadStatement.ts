@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
+import { Platform } from 'react-native';
 import { supabase } from '../../../lib/supabase';
 
 export function useUploadStatement() {
@@ -37,7 +38,7 @@ export function useUploadStatement() {
     source_type: string;
     client_id: string;
     signed_url: string;
-     accountant_id: null 
+    accountant_id: null
   }) => {
     try {
       await supabase.auth.refreshSession();
@@ -74,35 +75,43 @@ export function useUploadStatement() {
   };
 
   return useMutation({
-    mutationFn: async ({ userId, fileUri, fileName, fileType }: { userId: string; fileUri: string; fileName: string; fileType: string }) => {
-      // Validate file size before uploading (final safety check)
-      const fileInfo = await FileSystem.getInfoAsync(fileUri);
-      if (fileInfo.exists && fileInfo.size !== undefined) {
-        const maxSizeInBytes = 2 * 1024 * 1024; // 2MB in bytes
-        if (fileInfo.size > maxSizeInBytes) {
-          const fileSizeInMB = (fileInfo.size / (1024 * 1024)).toFixed(2);
-          throw new Error(`File size (${fileSizeInMB} MB) exceeds the maximum allowed size of 2 MB. Please select a smaller file.`);
+    mutationFn: async ({ userId, fileUri, fileName, fileType, fileSize }: { userId: string; fileUri: string; fileName: string; fileType: string; fileSize?: number }) => {
+      const maxSizeInBytes = 2 * 1024 * 1024; // 2MB in bytes
+
+      // On native, use FileSystem to validate size; on web use the size from the picker
+      if (Platform.OS !== 'web') {
+        const fileInfo = await FileSystem.getInfoAsync(fileUri);
+        if (fileInfo.exists && fileInfo.size !== undefined) {
+          if (fileInfo.size > maxSizeInBytes) {
+            const fileSizeInMB = (fileInfo.size / (1024 * 1024)).toFixed(2);
+            throw new Error(`File size (${fileSizeInMB} MB) exceeds the maximum allowed size of 2 MB. Please select a smaller file.`);
+          }
         }
+      } else if (fileSize !== undefined && fileSize > maxSizeInBytes) {
+        const fileSizeInMB = (fileSize / (1024 * 1024)).toFixed(2);
+        throw new Error(`File size (${fileSizeInMB} MB) exceeds the maximum allowed size of 2 MB. Please select a smaller file.`);
       }
 
       // Upload file to Supabase Storage
       const fileExt = fileName.split('.').pop();
       const filePath = `${userId}/${Date.now()}.${fileExt}`;
 
-      // Read file using expo-file-system legacy API (React Native compatible)
-      // Read file as base64
-      const base64 = await FileSystem.readAsStringAsync(fileUri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-
-      // Convert base64 to ArrayBuffer for Supabase
-      // Convert base64 string to binary string, then to ArrayBuffer
-      const binaryString = atob(base64);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
+      // Read file content – FileSystem is native-only; on web use fetch to get a Blob
+      let fileData: ArrayBuffer;
+      if (Platform.OS !== 'web') {
+        const base64 = await FileSystem.readAsStringAsync(fileUri, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        const binaryString = atob(base64);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        fileData = bytes.buffer;
+      } else {
+        const response = await fetch(fileUri);
+        fileData = await response.arrayBuffer();
       }
-      const fileData = bytes.buffer;
 
       // Upload to Supabase Storage
       const { data: uploadData, error: uploadError } = await supabase.storage
@@ -177,7 +186,7 @@ export function useUploadStatement() {
         source_type: 'bank_statement',
         client_id: userId,
         signed_url: signedUrl,
-         accountant_id: null 
+        accountant_id: null
       }).catch((error) => {
         console.error('Backend notification failed (non-blocking):', error);
       });
@@ -203,11 +212,10 @@ export function usePickDocument() {
     }
 
     return {
-
       uri: result.assets[0].uri,
       name: result.assets[0].name,
       type: result.assets[0].mimeType || 'application/pdf',
-
+      size: result.assets[0].size,
     };
   };
 }
