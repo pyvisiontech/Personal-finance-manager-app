@@ -321,12 +321,12 @@ export default function DashboardScreen() {
   }, [filterPeriod, currentDate]);
 
   // Use group transactions if in group context, otherwise use personal transactions
-  const { data: groupTransactions = [], isLoading: isLoadingGroup, isFetching: isFetchingGroup } = useGroupTransactions(
+  const { data: groupTransactions = [], isLoading: isLoadingGroup, isFetching: isFetchingGroup, isError: isErrorGroup } = useGroupTransactions(
     (hasGroupContext && currentGroupId) ? currentGroupId : '',
     { startDate, endDate }
   );
 
-  const { data: personalTransactions = [], isLoading: isLoadingPersonal, isFetching: isFetchingPersonal } = useTransactions(
+  const { data: personalTransactions = [], isLoading: isLoadingPersonal, isFetching: isFetchingPersonal, isError: isErrorPersonal } = useTransactions(
     user?.id || '',
     { startDate, endDate }
   );
@@ -335,6 +335,7 @@ export default function DashboardScreen() {
   const transactions = hasGroupContext ? groupTransactions : personalTransactions;
   const isLoading = hasGroupContext ? isLoadingGroup : isLoadingPersonal;
   const isFetching = hasGroupContext ? isFetchingGroup : isFetchingPersonal;
+  const isError = hasGroupContext ? isErrorGroup : isErrorPersonal;
 
   // Previous period transactions for Total comparison
   const { data: previousGroupTransactions = [] } = useGroupTransactions(
@@ -350,7 +351,7 @@ export default function DashboardScreen() {
   // Select appropriate previous period data based on group context
   const previousTransactions = hasGroupContext ? previousGroupTransactions : previousPersonalTransactions;
 
-  
+
   // Use transactions directly (backend should prevent duplicates)
   const deduplicatedTransactions = transactions;
   const deduplicatedPreviousTransactions = previousTransactions;
@@ -499,7 +500,8 @@ export default function DashboardScreen() {
   // Show full-screen loading only on initial load when there's no cached data
   // If data exists but is refetching, show the cached data (no loading screen)
   // Don't block on authReady if we have a user - allow transactions to load
-  if ((!user || !authReady) && isLoading && deduplicatedTransactions.length === 0) {
+  // Also bail out immediately on error so we never get stuck on the spinner
+  if ((!user || !authReady) && isLoading && !isError && deduplicatedTransactions.length === 0) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#4F46E5" />
@@ -509,7 +511,8 @@ export default function DashboardScreen() {
   }
 
   // Show loading state in chart area when loading and no transactions yet
-  const showLoadingInChart = isLoading && deduplicatedTransactions.length === 0;
+  // Never show loading spinner indefinitely – bail out on error
+  const showLoadingInChart = isLoading && !isError && deduplicatedTransactions.length === 0;
 
 
   return (
@@ -554,8 +557,8 @@ export default function DashboardScreen() {
             {viewMode === 'expense'
               ? 'Expense Overview'
               : viewMode === 'income'
-              ? 'Income Overview'
-              : 'Total Overview'}
+                ? 'Income Overview'
+                : 'Total Overview'}
           </Text>
 
           {showLoadingInChart ? (

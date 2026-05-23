@@ -30,10 +30,10 @@ export function useTransactions(userId: string, filters?: { startDate?: string; 
     },
     enabled: !!userId,
     retry: 2,
-    staleTime: Infinity,
+    staleTime: 1000 * 60 * 5,   // 5 minutes – allow refetch after upload + navigation
     gcTime: 1000 * 60 * 10,
-    refetchOnMount: false,
+    refetchOnMount: true,        // re-fetch when returning to dashboard
     refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
+    refetchOnReconnect: true,
   });
 }
