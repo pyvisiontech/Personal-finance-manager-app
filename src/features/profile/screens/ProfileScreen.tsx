@@ -9,6 +9,8 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  Linking,
+  Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -94,6 +96,22 @@ export function ProfileScreen() {
     setRefreshing(true);
     await fetchProfileData();
     setRefreshing(false);
+  };
+
+  const handleDeleteAccountRequest = () => {
+    Alert.alert(
+      'Delete Account',
+      'You will be taken to our account deletion request page. Your request will be processed within 30 days.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Continue',
+          style: 'destructive',
+          onPress: () =>
+            Linking.openURL('https://forms.gle/oXACfYykmiVrEQJk7'),
+        },
+      ]
+    );
   };
 
   const getInitials = () => {
@@ -289,6 +307,24 @@ export function ProfileScreen() {
             )}
           </View>
         </View>
+
+        {/* Danger Zone */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <MaterialIcons name="warning" size={20} color="#dc2626" />
+            <Text style={[styles.sectionTitle, styles.dangerTitle]}>Danger Zone</Text>
+          </View>
+
+          <View style={styles.infoCard}>
+            <TouchableOpacity style={styles.deleteRow} onPress={handleDeleteAccountRequest}>
+              <View style={styles.infoLabelContainer}>
+                <MaterialIcons name="delete-forever" size={18} color="#dc2626" />
+                <Text style={styles.deleteLabel}>Delete Account</Text>
+              </View>
+              <MaterialIcons name="chevron-right" size={20} color="#dc2626" />
+            </TouchableOpacity>
+          </View>
+        </View>
       </ScrollView>
     </View>
   );
@@ -437,6 +473,21 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: '#f3f4f6',
     marginVertical: 4,
+  },
+  dangerTitle: {
+    color: '#dc2626',
+  },
+  deleteRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  deleteLabel: {
+    fontSize: 14,
+    color: '#dc2626',
+    marginLeft: 8,
+    fontWeight: '600',
   },
 });
 
