@@ -4,17 +4,17 @@
     "slug": "personal-finance-tracker",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/new-logo.png",
+    "icon": "./assets/play-store-icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/new-logo.png",
+      "image": "./assets/play-store-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/new-logo.png",
+        "foregroundImage": "./assets/play-store-icon.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
@@ -29,7 +29,7 @@
       "bundleIdentifier": "com.rajaramsingh.personalfinancetracker"
     },
     "web": {
-      "favicon": "./assets/new-logo.png"
+      "favicon": "./assets/play-store-icon.png"
     },
     "scheme": "personalfinancetracker",
     "plugins": [

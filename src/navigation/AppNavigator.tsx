@@ -289,7 +289,7 @@ export function AppNavigator() {
     return (
       <View style={{ flex: 1, backgroundColor: '#ffffff', justifyContent: 'center', alignItems: 'center' }}>
         <Image 
-          source={require('../../assets/new-logo.png')}
+          source={require('../../assets/play-store-icon.png')}
           style={{ width: 200, height: 200 }}
           resizeMode="contain"
         />
