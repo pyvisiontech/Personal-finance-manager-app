@@ -149,16 +149,22 @@ const styles = StyleSheet.create({
   },
 });
 
-type LoginStep = 'email' | 'otp';
+type LoginStep = 'email' | 'otp' | 'password';
+
+// Demo / Play Store reviewer account. When this exact email is entered, the app
+// skips OTP and uses email + password login instead (no OTP is sent).
+const DEMO_EMAIL = (process.env.EXPO_PUBLIC_DEMO_EMAIL || '').trim().toLowerCase();
 
 export function LoginScreen({ navigation }: any) {
   const [step, setStep] = useState<LoginStep>('email');
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
+  const [password, setPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
   const [loading, setLoading] = useState(false);
   const [otpError, setOtpError] = useState('');
   const [emailError, setEmailError] = useState('');
-  const { signInWithOtp, verifyOtp, signInWithGoogle, user } = useAuth();
+  const { signIn, signInWithOtp, verifyOtp, signInWithGoogle, user } = useAuth();
   const googleSignInTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const signInSuccessRef = useRef<boolean>(false);
 
@@ -196,6 +202,15 @@ export function LoginScreen({ navigation }: any) {
 
     // Clear any previous inline error
     setEmailError('');
+
+    // Demo / reviewer account: skip OTP and use password login instead.
+    if (DEMO_EMAIL && email.trim().toLowerCase() === DEMO_EMAIL) {
+      setPassword('');
+      setPasswordError('');
+      setStep('password');
+      return;
+    }
+
     setLoading(true);
     try {
       // shouldCreateUser: false — Login should never create new accounts
@@ -241,6 +256,23 @@ export function LoginScreen({ navigation }: any) {
     } catch (error: any) {
       setOtpError(error.message || 'Verification failed. Please try again.');
       setOtp('');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePasswordLogin = async () => {
+    if (!password) {
+      setPasswordError('Please enter your password');
+      return;
+    }
+    setPasswordError('');
+    setLoading(true);
+    try {
+      // signIn uses Supabase signInWithPassword; auth state change handles navigation.
+      await signIn(email, password);
+    } catch (error: any) {
+      setPasswordError(error?.message || 'Invalid email or password');
     } finally {
       setLoading(false);
     }
@@ -317,10 +349,18 @@ export function LoginScreen({ navigation }: any) {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.header}>
-            <Text style={styles.title}>{step === 'email' ? 'Welcome Back' : 'Check your inbox'}</Text>
+            <Text style={styles.title}>
+              {step === 'email'
+                ? 'Welcome Back'
+                : step === 'password'
+                ? 'Sign in'
+                : 'Check your inbox'}
+            </Text>
             <Text style={styles.subtitle}>
               {step === 'email'
                 ? 'Sign in to keep tracking your spending and goals.'
+                : step === 'password'
+                ? 'Enter your password to continue.'
                 : 'Enter the 6-digit code we just sent to your email.'}
             </Text>
           </View>
@@ -372,6 +412,52 @@ export function LoginScreen({ navigation }: any) {
                     <Text style={styles.signUpLink}>Sign Up</Text>
                   </TouchableOpacity>
                 </View>
+              </>
+            ) : step === 'password' ? (
+              <>
+                <Text style={styles.emailDisplay}>{email}</Text>
+                <Input
+                  label="Password"
+                  placeholder="Enter your password"
+                  value={password}
+                  onChangeText={(text) => {
+                    setPassword(text);
+                    if (passwordError) setPasswordError('');
+                  }}
+                  secureTextEntry
+                  autoCapitalize="none"
+                  autoComplete="password"
+                  style={styles.input}
+                  editable={!loading}
+                  error={passwordError}
+                />
+
+                <Button
+                  title={loading ? 'Signing in...' : 'Sign In'}
+                  onPress={handlePasswordLogin}
+                  disabled={loading}
+                  loading={loading}
+                />
+
+                <TouchableOpacity
+                  onPress={() => {
+                    setStep('email');
+                    setPassword('');
+                    setPasswordError('');
+                  }}
+                  style={{ marginTop: 16 }}
+                >
+                  <Text
+                    style={{
+                      color: '#007a33',
+                      fontSize: 14,
+                      fontWeight: '600',
+                      textAlign: 'center',
+                    }}
+                  >
+                    Change Email
+                  </Text>
+                </TouchableOpacity>
               </>
             ) : (
               <>
