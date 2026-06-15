@@ -424,10 +424,9 @@ export function LoginScreen({ navigation }: any) {
                     setPassword(text);
                     if (passwordError) setPasswordError('');
                   }}
-                  secureTextEntry
+                  showPasswordToggle
                   autoCapitalize="none"
                   autoComplete="password"
-                  style={styles.input}
                   editable={!loading}
                   error={passwordError}
                 />
