@@ -70,9 +70,6 @@ export function ProfileMenu() {
         case 'groups':
           navigation.navigate('HomeTab', { screen: 'GroupsList' });
           break;
-        case 'settings':
-          // Settings screen - coming soon
-          break;
         case 'faq':
           navigation.navigate('HomeTab', { screen: 'FAQ' });
           break;
@@ -204,20 +201,6 @@ export function ProfileMenu() {
                       <MaterialIcons name="people" size={20} color="#007a33" />
                     </View>
                     <Text style={styles.menuItemText}>Groups</Text>
-                  </View>
-                  <MaterialIcons name="chevron-right" size={20} color="#9CA3AF" />
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.menuItem}
-                  onPress={() => handleMenuOption('settings')}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.menuItemLeft}>
-                    <View style={[styles.menuIconContainer, { backgroundColor: '#F3F4F6' }]}>
-                      <MaterialIcons name="settings" size={20} color="#6B7280" />
-                    </View>
-                    <Text style={styles.menuItemText}>Settings</Text>
                   </View>
                   <MaterialIcons name="chevron-right" size={20} color="#9CA3AF" />
                 </TouchableOpacity>
